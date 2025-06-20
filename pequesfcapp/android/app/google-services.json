@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "687874838162",
+    "project_id": "pequesfcapp",
+    "storage_bucket": "pequesfcapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:687874838162:android:4db6ff4f8705266c91204b",
+        "android_client_info": {
+          "package_name": "com.example.pequesfcapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATtMCMT0zJ64nl1CSdxscls5ENoieyOn4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

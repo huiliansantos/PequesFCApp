@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../players/player_list_screen.dart';
 import '../guardians/guardians_list_screen.dart';
 import '../payments/payment_management_screen.dart';
 import '../matches/match_schedule_screen.dart';
 import '../results/result_registration_screen.dart';
 import '../settings/settings_screen.dart';
+import '../login/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String role;
@@ -18,15 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   static final List<Widget> _adminScreens = [
-    PlayerListScreen(),            // Gestión de jugadores
-    GuardianListScreen(),          // Gestión de apoderados
+    PlayerListScreen(),
+    GuardianListScreen(),
     PaymentManagementScreen(),
     MatchScheduleScreen(),
-    ResultRegistrationScreen(
-      rival: '', // TODO: Provide appropriate rival value
-      categoria: '', // TODO: Provide appropriate categoria value
-      fecha: DateTime.now(), // TODO: Provide appropriate fecha value
-    ),
+    ResultRegistrationScreen(),
     SettingsScreen(),
   ];
 
@@ -41,7 +39,50 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const CircleAvatar(
+              child: Icon(Icons.person, color: Colors.white),
+              backgroundColor: Colors.grey,
+              radius: 16,
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user?.email ?? "",
+                  style: const TextStyle(fontSize: 14),
+                ),
+                Text(
+                  widget.role == 'admin' ? 'Administrador' : widget.role,
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
+      ),
       body: _adminScreens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: _adminNavItems,
@@ -50,6 +91,64 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: const Color(0xFFD32F2F),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (context) => SafeArea(
+              child: Wrap(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.person_add, color: Color(0xFFD32F2F)),
+                    title: const Text('Nuevo Jugador'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navega a la pantalla de nuevo jugador
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.family_restroom, color: Color(0xFFD32F2F)),
+                    title: const Text('Nuevo Apoderado'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navega a la pantalla de nuevo apoderado
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.sports_soccer, color: Color(0xFFD32F2F)),
+                    title: const Text('Nuevo Partido'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navega a la pantalla de nuevo partido
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.emoji_events, color: Color(0xFFD32F2F)),
+                    title: const Text('Nuevo Resultado'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navega a la pantalla de nuevo resultado
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.payment, color: Color(0xFFD32F2F)),
+                    title: const Text('Nuevo Pago'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Navega a la pantalla de nuevo pago
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+        tooltip: 'Agregar',
       ),
     );
   }

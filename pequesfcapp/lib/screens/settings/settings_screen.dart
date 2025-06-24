@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -26,8 +27,8 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Cerrar sesión'),
-            onTap: () {
-              // Lógica para cerrar sesión
+            onTap: () async {
+              await FirebaseAuth.instance.signOut();
             },
           ),
           const Divider(),

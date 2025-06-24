@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../core/constants.dart';
 import '../../providers/auth.provider.dart';
 import '../../providers/user_role_provider.dart';
+import '../guardians/guardian_dashboard_screen.dart';
 import '../home/home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -82,39 +85,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Text(error!, style: const TextStyle(color: Colors.red)),
                     ],
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            try {
-                              await ref.read(authRepositoryProvider).signInWithEmail(email, password);
-                              final rol = await ref.read(userRoleProvider.future);
-                              if (mounted) {
-                                if (rol == 'admin') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const HomeScreen(role: 'admin')),
-                                  );
-                                } else if (rol == 'apoderado') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const HomeScreen(role: 'apoderado')),
-                                  );
-                                } else {
-                                  // Maneja el caso de rol desconocido
+                    FractionallySizedBox(
+                      widthFactor: 1,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              setState(() => error = null);
+                              try {
+                                await ref.read(authRepositoryProvider).signInWithEmail(email, password);
+                                final rol = await ref.read(userRoleProvider.future);
+                                if (mounted) {
+                                  if (rol == 'admin') {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const HomeScreen(role: 'admin')),
+                                    );
+                                    return;
+                                  } else if (rol == 'apoderado') {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const GuardianDashboardScreen()),
+                                    );
+                                    return;
+                                  }
+                                  setState(() => error = 'Rol desconocido');
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() => error = 'Usuario o contraseña incorrectos');
                                 }
                               }
-                            } catch (e) {
-                              setState(() => error = 'Usuario o contraseña incorrectos');
                             }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(AppConstants.rojo),
-                          foregroundColor: Colors.white,
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(AppConstants.rojo),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(fontSize: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Iniciar sesión'),
                         ),
-                        child: const Text('Iniciar sesión'),
                       ),
                     ),
                   ],

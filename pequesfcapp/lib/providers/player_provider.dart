@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../repositories/player_repository.dart';
+import '../models/player_model.dart';
 
-// Simulación de lista de jugadores (reemplaza con tu modelo real)
-final playerListProvider = StateProvider<List<Map<String, dynamic>>>((ref) => [
-  {
-    'nombre': 'Juan Pérez',
-    'categoria': 'Sub-10',
-    'apoderado': 'Carlos Pérez',
-    'estadoPago': 'pagado',
-    'fotoUrl': null,
-  },
-  // Agrega más jugadores aquí
-]);
+final playerRepositoryProvider = Provider((ref) => PlayerRepository());
+
+final playersProvider = StreamProvider<List<PlayerModel>>((ref) {
+  return ref.watch(playerRepositoryProvider).playersStream();
+});
+
+final playerProvider = FutureProvider.family<PlayerModel?, String>((ref, id) async {
+  return ref.watch(playerRepositoryProvider).getPlayerById(id);
+});

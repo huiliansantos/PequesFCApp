@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../players/player_list_screen.dart';
 import '../guardians/guardians_list_screen.dart';
+import '../guardians/guardian_form_screen.dart';
+import '../players/player_form_screen.dart';
 import '../payments/payment_management_screen.dart';
 import '../matches/match_schedule_screen.dart';
 import '../results/result_registration_screen.dart';
@@ -30,10 +32,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static final List<BottomNavigationBarItem> _adminNavItems = [
     BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Jugadores'),
-    BottomNavigationBarItem(icon: Icon(Icons.family_restroom), label: 'Apoderados'),
+    BottomNavigationBarItem(
+        icon: Icon(Icons.family_restroom), label: 'Apoderados'),
     BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Pagos'),
     BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Partidos'),
-    BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Resultados'),
+    BottomNavigationBarItem(
+        icon: Icon(Icons.emoji_events), label: 'Resultados'),
     BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Ajustes'),
   ];
 
@@ -103,23 +107,38 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Wrap(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.person_add, color: Color(0xFFD32F2F)),
+                    leading:
+                        const Icon(Icons.person_add, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Jugador'),
                     onTap: () {
                       Navigator.pop(context);
-                      // Navega a la pantalla de nuevo jugador
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const PlayerFormScreen(), // <-- Muestra el formulario de registro
+                        ),
+                      );
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.family_restroom, color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.family_restroom,
+                        color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Apoderado'),
                     onTap: () {
                       Navigator.pop(context);
-                      // Navega a la pantalla de nuevo apoderado
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const GuardianFormScreen(), // <-- Muestra el formulario de registro de apoderado
+                        ),
+                      );
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.sports_soccer, color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.sports_soccer,
+                        color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Partido'),
                     onTap: () {
                       Navigator.pop(context);
@@ -127,7 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.emoji_events, color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.emoji_events,
+                        color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Resultado'),
                     onTap: () {
                       Navigator.pop(context);
@@ -135,7 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.payment, color: Color(0xFFD32F2F)),
+                    leading:
+                        const Icon(Icons.payment, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Pago'),
                     onTap: () {
                       Navigator.pop(context);

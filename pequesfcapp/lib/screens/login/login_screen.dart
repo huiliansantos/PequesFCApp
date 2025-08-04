@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../core/constants.dart';
 import '../../providers/auth.provider.dart';
 import '../../providers/user_role_provider.dart';
+import '../../providers/guardian_provider.dart';
+import '../../models/guardian_model.dart';
+import '../../repositories/guardian_repository.dart';
 import '../guardians/guardian_dashboard_screen.dart';
 import '../home/home_screen.dart';
 
@@ -20,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String email = '';
   String password = '';
   String? error;
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -64,18 +67,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 24),
                     TextFormField(
                       decoration: const InputDecoration(
-                        labelText: 'Correo electrónico',
+                        labelText: 'Usuario o correo',
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (v) => email = v,
-                      validator: (v) => v != null && v.contains('@') ? null : 'Correo inválido',
+                      validator: (v) => v != null && v.isNotEmpty ? null : 'Ingrese su usuario o correo',
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
                         labelText: 'Contraseña',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
                       onChanged: (v) => password = v,
                       validator: (v) => v != null && v.length >= 6 ? null : 'Mínimo 6 caracteres',
@@ -94,6 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             if (_formKey.currentState!.validate()) {
                               setState(() => error = null);
                               try {
+                                // 1. Intenta login con Firebase Auth
                                 await ref.read(authRepositoryProvider).signInWithEmail(email, password);
                                 final rol = await ref.read(userRoleProvider.future);
                                 if (mounted) {
@@ -104,17 +118,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     );
                                     return;
                                   } else if (rol == 'apoderado') {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const GuardianDashboardScreen()),
-                                    );
-                                    return;
+                                    // Buscar el modelo del apoderado por email (usuario)
+                                    final guardianRepo = ref.read(guardianRepositoryProvider);
+                                    final guardian = await guardianRepo.getGuardianByEmail(email);
+                                    if (guardian != null) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => GuardianDashboardScreen(guardian: guardian)),
+                                      );
+                                      return;
+                                    } else {
+                                      setState(() => error = 'No se encontró el apoderado.');
+                                      return;
+                                    }
                                   }
                                   setState(() => error = 'Rol desconocido');
                                 }
                               } catch (e) {
-                                if (mounted) {
-                                  setState(() => error = 'Usuario o contraseña incorrectos');
+                                // 2. Si falla, intenta login personalizado de apoderado
+                                try {
+                                  final guardianRepo = ref.read(guardianRepositoryProvider);
+                                  final guardian = await guardianRepo.autenticarGuardian(email, password);
+                                  if (guardian != null) {
+                                    // Aquí puedes guardar el guardian autenticado en un provider de estado global si lo necesitas
+                                    if (mounted) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => GuardianDashboardScreen(guardian: guardian)),
+                                      );
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      setState(() => error = 'Usuario o contraseña incorrectos');
+                                    }
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() => error = 'Usuario o contraseña incorrectos');
+                                  }
                                 }
                               }
                             }

@@ -1,56 +1,61 @@
 import 'package:flutter/material.dart';
+import '../../models/player_model.dart';
 
 class PlayerDetailScreen extends StatelessWidget {
-  final String nombre;
-  final String categoria;
-  final String apoderado;
-  final String estadoPago;
-  final String? fotoUrl;
+  final PlayerModel player;
 
-  const PlayerDetailScreen({
-    super.key,
-    required this.nombre,
-    required this.categoria,
-    required this.apoderado,
-    required this.estadoPago,
-    this.fotoUrl,
-  });
+  const PlayerDetailScreen({Key? key, required this.player}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Detalle de $nombre'),
-      ),
+      appBar: AppBar(title: Text('${player.nombres} ${player.apellido}')),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
           children: [
             Center(
               child: CircleAvatar(
-                radius: 40,
-                backgroundImage: fotoUrl != null ? NetworkImage(fotoUrl!) : null,
-                child: fotoUrl == null ? const Icon(Icons.person, size: 40) : null,
+                radius: 50,
+                backgroundImage:
+                    AssetImage('assets/jugador.png') as ImageProvider,
               ),
             ),
-            const SizedBox(height: 24),
-            Text('Nombre: $nombre', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text('Categoría: $categoria', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text('Apoderado: $apoderado', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text('Estado de pago: $estadoPago', style: const TextStyle(fontSize: 16)),
-            // Puedes agregar más información aquí, como historial de pagos, partidos, etc.
+            SizedBox(height: 20),
+            _buildDetailItem('Nombres', player.nombres),
+            _buildDetailItem('Apellido', player.apellido),
+            _buildDetailItem('Fecha de Nacimiento',
+                '${player.fechaDeNacimiento.toLocal().toString().split(' ')[0]}'),
+            _buildDetailItem('Lugar de Nacimiento', player.lugarDeNacimiento),
+            _buildDetailItem('Género', player.genero),
+            _buildDetailItem(
+                'Apoderado ID', player.guardianId ?? 'Sin asignar'),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Aquí puedes navegar a una pantalla para asignar o cambiar apoderado
+                // Navigator.push(context, MaterialPageRoute(builder: (_) => AsignarApoderadoScreen(player: player)));
+              },
+              child: Text('Asignar o Cambiar Apoderado'),
+            ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Acción para editar jugador
-        },
-        child: const Icon(Icons.edit),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Expanded(child: Text(value)),
+        ],
       ),
     );
   }

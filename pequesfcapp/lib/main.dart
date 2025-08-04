@@ -5,7 +5,6 @@ import 'providers/auth.provider.dart';
 import 'providers/user_role_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/login/login_screen.dart';
-import 'screens/guardians/guardian_dashboard_screen.dart';
 import 'screens/home/home_screen.dart';
 
 void main() async {
@@ -28,9 +27,11 @@ class PequesFCApp extends ConsumerWidget {
       home: authState.when(
         data: (user) {
           if (user == null) {
+            // Aquí entra tanto el apoderado como cualquier usuario no autenticado
+            // El LoginScreen se encarga de distinguir el flujo
             return const LoginScreen();
           }
-          // Usuario autenticado, ahora obtenemos el rol
+          // Solo usuarios autenticados con Firebase Auth (ej: admin)
           return FutureBuilder<String?>(
             future: ref.read(userRoleProvider.future),
             builder: (context, snapshot) {
@@ -38,9 +39,7 @@ class PequesFCApp extends ConsumerWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasData) {
-                if (snapshot.data == 'apoderado') {
-                  return const GuardianDashboardScreen();
-                } else if (snapshot.data == 'admin') {
+                if (snapshot.data == 'admin') {
                   return const HomeScreen(role: 'admin');
                 } else {
                   return const Center(child: Text('Rol desconocido'));

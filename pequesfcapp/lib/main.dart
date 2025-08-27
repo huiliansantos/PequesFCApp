@@ -6,10 +6,13 @@ import 'providers/user_role_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await initializeDateFormatting('es_ES', null);
   runApp(const ProviderScope(child: PequesFCApp()));
 }
 
@@ -24,6 +27,15 @@ class PequesFCApp extends ConsumerWidget {
       title: 'PEQUES F.C.',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'),
+        Locale('en', 'US'),
+      ],
       home: authState.when(
         data: (user) {
           if (user == null) {
@@ -55,4 +67,3 @@ class PequesFCApp extends ConsumerWidget {
     );
   }
 }
-

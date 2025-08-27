@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import '../../models/player_model.dart';
 import '../../providers/player_provider.dart';
 
 class PlayerFormScreen extends ConsumerStatefulWidget {
-  final PlayerModel? player; // null si estamos creando, no null si estamos editando
+  final PlayerModel? player;
 
   const PlayerFormScreen({Key? key, this.player}) : super(key: key);
 
@@ -18,64 +19,129 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
 
   late TextEditingController nombresController;
   late TextEditingController apellidoController;
-  late TextEditingController lugarNacimientoController;
   late TextEditingController fotoController;
   late TextEditingController ciController;
+  late TextEditingController nuevaNacionalidadController;
 
   DateTime? fechaDeNacimiento;
-  String genero = 'Masculino'; // Valor por defecto
+  String genero = 'Masculino';
+  String nacionalidad = 'Boliviana';
+  String? departamentoBolivia;
+  List<String> nacionalidades = [
+    'Argentina',
+    'Boliviana',
+    'Chilena',
+    'Paraguaya',
+    'Peruana',
+    'Otra'
+  ];
+  List<String> departamentosBolivia = [
+    'La Paz',
+    'Santa Cruz',
+    'Cochabamba',
+    'Oruro',
+    'Potosí',
+    'Tarija',
+    'Chuquisaca',
+    'Beni',
+    'Pando'
+  ];
 
   @override
   void initState() {
     super.initState();
     nombresController = TextEditingController(text: widget.player?.nombres ?? '');
     apellidoController = TextEditingController(text: widget.player?.apellido ?? '');
-    lugarNacimientoController = TextEditingController(text: widget.player?.lugarDeNacimiento ?? '');
     fotoController = TextEditingController(text: widget.player?.foto ?? '');
     ciController = TextEditingController(text: widget.player?.ci ?? '');
+    nuevaNacionalidadController = TextEditingController();
     fechaDeNacimiento = widget.player?.fechaDeNacimiento;
     genero = widget.player?.genero ?? 'Masculino';
+    nacionalidad = widget.player?.nacionalidad ?? 'Boliviana';
+    departamentoBolivia = widget.player?.departamentoBolivia;
   }
 
   @override
   void dispose() {
     nombresController.dispose();
     apellidoController.dispose();
-    lugarNacimientoController.dispose();
     fotoController.dispose();
     ciController.dispose();
+    nuevaNacionalidadController.dispose();
     super.dispose();
   }
 
   Future<void> _selectDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: fechaDeNacimiento ?? DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      initialDate: fechaDeNacimiento ?? DateTime.now().subtract(const Duration(days: 365 * 10)),
+      firstDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      lastDate: DateTime.now().subtract(const Duration(days: 365 * 3)),
+      locale: const Locale('es', 'ES'),
     );
-    if (picked != null && picked != fechaDeNacimiento) {
+    if (picked != null) {
       setState(() {
         fechaDeNacimiento = picked;
       });
     }
   }
 
-  Future<void> _savePlayer() async {
-    if (!_formKey.currentState!.validate() || fechaDeNacimiento == null) return;
+  String? _validateNombre(String? value) {
+    if (value == null || value.isEmpty) return 'Campo obligatorio';
+    if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(value)) return 'Solo letras';
+    return null;
+  }
 
-    // Imagen por defecto (puedes cambiar la URL por la tuya)
+  String? _validateApellido(String? value) {
+    if (value == null || value.isEmpty) return 'Campo obligatorio';
+    if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(value)) return 'Solo letras';
+    return null;
+  }
+
+  String? _validateCI(String? value) {
+    if (value == null || value.isEmpty) return 'Campo obligatorio';
+    if (!RegExp(r'^\d+$').hasMatch(value)) return 'Solo números';
+    return null;
+  }
+
+  Future<void> _savePlayer() async {
+    if (!_formKey.currentState!.validate() || fechaDeNacimiento == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Completa todos los campos y selecciona una fecha válida')),
+      );
+      return;
+    }
+
+    // Validar edad entre 2 y 18 años
+    final edad = DateTime.now().year - fechaDeNacimiento!.year -
+        ((DateTime.now().month < fechaDeNacimiento!.month ||
+          (DateTime.now().month == fechaDeNacimiento!.month &&
+           DateTime.now().day < fechaDeNacimiento!.day)) ? 1 : 0);
+    if (edad < 2 || edad > 18) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solo se pueden registrar niños entre 2 y 18 años')),
+      );
+      return;
+    }
+
+    String nacionalidadFinal = nacionalidad;
+    if (nacionalidad == 'Otra' && nuevaNacionalidadController.text.isNotEmpty) {
+      nacionalidadFinal = nuevaNacionalidadController.text;
+      // Aquí podrías guardar la nueva nacionalidad en la base de datos si lo deseas
+    }
+
     final String fotoPorDefecto = 'assets/jugador.png';
 
     final newPlayer = PlayerModel(
-      id: widget.player?.id ?? Uuid().v4(),
+      id: widget.player?.id ?? const Uuid().v4(),
       nombres: nombresController.text,
       apellido: apellidoController.text,
       fechaDeNacimiento: fechaDeNacimiento!,
-      lugarDeNacimiento: lugarNacimientoController.text,
       genero: genero,
-      foto: fotoPorDefecto, // <-- Solo asigna la imagen por defecto
+      foto: fotoPorDefecto,
       ci: ciController.text,
+      nacionalidad: nacionalidadFinal,
+      departamentoBolivia: nacionalidadFinal == 'Boliviana' ? departamentoBolivia : null,
       guardianId: widget.player?.guardianId,
     );
 
@@ -100,6 +166,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final dateFormat = DateFormat('dd/MM/yyyy', 'es_ES');
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.player == null ? 'Crear Jugador' : 'Editar Jugador'),
@@ -112,26 +179,24 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
             children: [
               TextFormField(
                 controller: nombresController,
-                decoration: InputDecoration(labelText: 'Nombres'),
-                validator: (value) => value!.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(labelText: 'Nombres'),
+                validator: _validateNombre,
               ),
               TextFormField(
                 controller: apellidoController,
-                decoration: InputDecoration(labelText: 'Apellido'),
-                validator: (value) => value!.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(labelText: 'Apellidos'),
+                validator: _validateApellido,
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               ListTile(
                 title: Text(fechaDeNacimiento == null
                     ? 'Selecciona fecha de nacimiento'
-                    : 'Fecha de nacimiento: ${fechaDeNacimiento!.toLocal().toString().split(' ')[0]}'),
-                trailing: Icon(Icons.calendar_today),
+                    : 'Fecha de nacimiento: ${dateFormat.format(fechaDeNacimiento!)}'),
+                trailing: const Icon(Icons.calendar_today),
                 onTap: () => _selectDate(context),
-              ),
-              TextFormField(
-                controller: lugarNacimientoController,
-                decoration: InputDecoration(labelText: 'Lugar de nacimiento'),
-                validator: (value) => value!.isEmpty ? 'Campo obligatorio' : null,
+                subtitle: fechaDeNacimiento == null
+                    ? const Text('Obligatorio')
+                    : null,
               ),
               DropdownButtonFormField<String>(
                 value: genero,
@@ -143,15 +208,54 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
                     genero = value!;
                   });
                 },
-                decoration: InputDecoration(labelText: 'Género'),
+                decoration: const InputDecoration(labelText: 'Género'),
               ),
-              // Elimina el campo de foto y el botón de cámara
               TextFormField(
                 controller: ciController,
-                decoration: InputDecoration(labelText: 'Carnet de Identidad (CI)'),
-                validator: (value) => value!.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(labelText: 'Carnet de Identidad (CI)'),
+                validator: _validateCI,
+                keyboardType: TextInputType.number,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: nacionalidad,
+                decoration: const InputDecoration(labelText: 'Nacionalidad'),
+                items: nacionalidades
+                    .map((n) => DropdownMenuItem(value: n, child: Text(n)))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    nacionalidad = value!;
+                    if (nacionalidad != 'Boliviana') departamentoBolivia = null;
+                  });
+                },
+              ),
+              if (nacionalidad == 'Boliviana')
+                DropdownButtonFormField<String>(
+                  value: departamentoBolivia,
+                  decoration: const InputDecoration(labelText: 'Departamento'),
+                  items: departamentosBolivia
+                      .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      departamentoBolivia = value!;
+                    });
+                  },
+                  validator: (value) => value == null ? 'Selecciona un departamento' : null,
+                ),
+              if (nacionalidad == 'Otra')
+                TextFormField(
+                  controller: nuevaNacionalidadController,
+                  decoration: const InputDecoration(labelText: 'Nueva nacionalidad'),
+                  validator: (value) {
+                    if (nacionalidad == 'Otra' && (value == null || value.isEmpty)) {
+                      return 'Ingrese la nacionalidad';
+                    }
+                    return null;
+                  },
+                ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _savePlayer,
                 child: Text(widget.player == null ? 'Crear' : 'Actualizar'),

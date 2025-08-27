@@ -6,38 +6,41 @@ class PlayerModel {
   final String nombres;
   final String apellido;
   final DateTime fechaDeNacimiento;
-  final String lugarDeNacimiento;
   final String genero;
-  final String? foto;
-  final String? guardianId;
-  final String? estadoPago;
+  final String foto;
   final String ci;
+  final String? guardianId;
+  final String nacionalidad;
+  final String? departamentoBolivia;
+  final String? estadoPago; // <-- NUEVO
 
   PlayerModel({
     required this.id,
     required this.nombres,
     required this.apellido,
     required this.fechaDeNacimiento,
-    required this.lugarDeNacimiento,
     required this.genero,
-    this.foto,
-    this.guardianId,
-    this.estadoPago,
+    required this.foto,
     required this.ci,
+    required this.nacionalidad,
+    this.departamentoBolivia,
+    this.guardianId,
+    this.estadoPago, // <-- NUEVO
   });
 
   factory PlayerModel.fromMap(Map<String, dynamic> map) {
     return PlayerModel(
-      id: map['id'],
-      nombres: map['nombres'],
-      apellido: map['apellido'],
-      fechaDeNacimiento: DateTime.parse(map['fechaDeNacimiento']),
-      lugarDeNacimiento: map['lugarDeNacimiento'],
-      genero: map['genero'],
-      foto: map['foto'],
-      guardianId: map['guardianId'],
-      estadoPago: map['estadoPago'],
-      ci: map['ci'],
+      id: map['id'] as String,
+      nombres: map['nombres'] as String,
+      apellido: map['apellido'] as String,
+      fechaDeNacimiento: DateTime.parse(map['fechaDeNacimiento'] as String),
+      genero: map['genero'] as String,
+      foto: map['foto'] as String,
+      ci: map['ci'] as String,
+      nacionalidad: map['nacionalidad'] as String,
+      departamentoBolivia: map['departamentoBolivia'] as String?,
+      guardianId: map['guardianId'] as String?,
+      estadoPago: map['estadoPago'] as String?, // <-- NUEVO
     );
   }
 
@@ -47,12 +50,13 @@ class PlayerModel {
       'nombres': nombres,
       'apellido': apellido,
       'fechaDeNacimiento': fechaDeNacimiento.toIso8601String(),
-      'lugarDeNacimiento': lugarDeNacimiento,
       'genero': genero,
       'foto': foto,
-      'guardianId': guardianId,
-      'estadoPago': estadoPago,
       'ci': ci,
+      'nacionalidad': nacionalidad,
+      'departamentoBolivia': departamentoBolivia,
+      'guardianId': guardianId,
+      'estadoPago': estadoPago, // <-- NUEVO
     };
   }
 }

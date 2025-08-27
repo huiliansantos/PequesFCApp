@@ -9,6 +9,7 @@ import '../matches/match_schedule_screen.dart';
 import '../results/result_registration_screen.dart';
 import '../settings/settings_screen.dart';
 import '../login/login_screen.dart';
+import '../matches/match_form_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String role;
@@ -142,7 +143,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: const Text('Nuevo Partido'),
                     onTap: () {
                       Navigator.pop(context);
-                      // Navega a la pantalla de nuevo partido
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const MatchFormScreen(), // <-- Muestra el formulario de registro de partido
+                        ),
+                      );
                     },
                   ),
                   ListTile(

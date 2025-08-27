@@ -44,7 +44,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
   String generarUsuario(String nombreCompleto, String ci) {
     final partes = nombreCompleto.trim().split(' ');
     if (partes.length < 2) return '';
-    final usuario = '${partes[0][0].toLowerCase()}${partes[1].toLowerCase()}${ci.substring(ci.length - 4)}';
+    final usuario =
+        '${partes[0][0].toLowerCase()}${partes[1].toLowerCase()}${ci.substring(ci.length - 4)}';
     return usuario;
   }
 
@@ -90,17 +91,33 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
               TextFormField(
                 controller: nombreController,
                 decoration: const InputDecoration(labelText: 'Nombre Completo'),
-                validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Campo obligatorio';
+                  if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(v))
+                    return 'Solo letras';
+                  return null;
+                },
               ),
               TextFormField(
                 controller: ciController,
                 decoration: const InputDecoration(labelText: 'CI'),
-                validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Campo obligatorio';
+                  if (!RegExp(r'^\d+$').hasMatch(v)) return 'Solo números';
+                  return null;
+                },
+                keyboardType: TextInputType.number,
               ),
               TextFormField(
                 controller: celularController,
                 decoration: const InputDecoration(labelText: 'Celular'),
-                validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Campo obligatorio';
+                  if (!RegExp(r'^\d{8}$').hasMatch(v))
+                    return 'Debe tener 8 números';
+                  return null;
+                },
+                keyboardType: TextInputType.number,
               ),
               TextFormField(
                 controller: direccionController,
@@ -108,7 +125,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
               ),
               const SizedBox(height: 20),
-              Text('Asignar Jugador(es)', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('Asignar Jugador(es)',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Buscar jugador',
@@ -129,19 +147,21 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                     return nombre.contains(searchJugador);
                   }).toList();
                   return Column(
-                    children: filtrados.map((j) => CheckboxListTile(
-                      title: Text('${j.nombres} ${j.apellido}'),
-                      value: jugadoresSeleccionados.contains(j.id),
-                      onChanged: (selected) {
-                        setState(() {
-                          if (selected == true) {
-                            jugadoresSeleccionados.add(j.id);
-                          } else {
-                            jugadoresSeleccionados.remove(j.id);
-                          }
-                        });
-                      },
-                    )).toList(),
+                    children: filtrados
+                        .map((j) => CheckboxListTile(
+                              title: Text('${j.nombres} ${j.apellido}'),
+                              value: jugadoresSeleccionados.contains(j.id),
+                              onChanged: (selected) {
+                                setState(() {
+                                  if (selected == true) {
+                                    jugadoresSeleccionados.add(j.id);
+                                  } else {
+                                    jugadoresSeleccionados.remove(j.id);
+                                  }
+                                });
+                              },
+                            ))
+                        .toList(),
                   );
                 },
               ),

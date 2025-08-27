@@ -26,7 +26,7 @@ class PlayerDetailScreen extends StatelessWidget {
             _buildDetailItem('Apellido', player.apellido),
             _buildDetailItem('Fecha de Nacimiento',
                 '${player.fechaDeNacimiento.toLocal().toString().split(' ')[0]}'),
-            _buildDetailItem('Lugar de Nacimiento', player.lugarDeNacimiento),
+            _buildDetailItem('Lugar de Nacimiento', player.departamentoBolivia ?? 'Sin asignar'),
             _buildDetailItem('Género', player.genero),
             _buildDetailItem(
                 'Apoderado ID', player.guardianId ?? 'Sin asignar'),

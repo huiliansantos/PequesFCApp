@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/player_provider.dart';
-import '../../providers/guardian_provider.dart'; // Agrega este import
+import '../../providers/guardian_provider.dart';
 import '../../models/player_model.dart';
 import '../../models/guardian_model.dart';
+import 'player_detail_screen.dart';
 
-// Función para calcular la categoría según la fecha de nacimiento
 String calcularCategoria(DateTime fechaNacimiento) {
   final ahora = DateTime.now();
   int edad = ahora.year - fechaNacimiento.year;
   if (ahora.month < fechaNacimiento.month ||
-      (ahora.month == fechaNacimiento.month &&
-          ahora.day < fechaNacimiento.day)) {
+      (ahora.month == fechaNacimiento.month && ahora.day < fechaNacimiento.day)) {
     edad--;
   }
   return 'Sub-$edad';
@@ -41,16 +40,13 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (jugadores) {
-            // Genera las categorías dinámicamente
             final categorias = jugadores
                 .map((j) => calcularCategoria(j.fechaDeNacimiento))
                 .toSet()
                 .toList();
 
-            // Filtra jugadores por categoría y búsqueda
             final jugadoresFiltrados = jugadores.where((jugador) {
-              final categoriaJugador =
-                  calcularCategoria(jugador.fechaDeNacimiento);
+              final categoriaJugador = calcularCategoria(jugador.fechaDeNacimiento);
               final coincideCategoria = categoriaSeleccionada == null ||
                   categoriaJugador == categoriaSeleccionada;
               final coincideBusqueda =
@@ -67,8 +63,7 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Row(
                     children: [
-                      const Icon(Icons.people,
-                          color: Color(0xFFD32F2F), size: 28),
+                      const Icon(Icons.people, color: Color(0xFFD32F2F), size: 28),
                       const SizedBox(width: 8),
                       Text(
                         'Lista de Jugadores',
@@ -99,8 +94,7 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
                           hint: const Text('Filtrar por categoría'),
                           isExpanded: true,
                           items: [
-                            const DropdownMenuItem(
-                                value: null, child: Text('Todas')),
+                            const DropdownMenuItem(value: null, child: Text('Todas')),
                             ...categorias.map((cat) =>
                                 DropdownMenuItem(value: cat, child: Text(cat))),
                           ],
@@ -134,8 +128,7 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
                     itemCount: jugadoresFiltrados.length,
                     itemBuilder: (context, index) {
                       final jugador = jugadoresFiltrados[index];
-                      final categoriaJugador =
-                          calcularCategoria(jugador.fechaDeNacimiento);
+                      final categoriaJugador = calcularCategoria(jugador.fechaDeNacimiento);
                       GuardianModel? guardian;
                       try {
                         guardian = guardians.firstWhere(
@@ -144,23 +137,27 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
                       } catch (e) {
                         guardian = null;
                       }
-                      final nombreApoderado =
-                          guardian?.nombreCompleto ?? "Sin apoderado";
+                      final nombreApoderado = guardian?.nombreCompleto ?? "Sin apoderado";
 
                       return Card(
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 16),
+                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundImage:
-                                const AssetImage('assets/jugador.png'),
+                            backgroundImage: const AssetImage('assets/jugador.png'),
                           ),
-                          title: Text('${jugador.nombres} ${jugador.apellido}'),
+                          title: Text(
+                            '${jugador.nombres} ${jugador.apellido}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Text(
-                              'Categoría: $categoriaJugador\nApoderado: $nombreApoderado'),
+                            'Categoría: $categoriaJugador\nApoderado: $nombreApoderado',
+                            style: const TextStyle(fontSize: 14),
+                          ),
                           trailing: Chip(
                             label: Text(
-                              jugador.estadoPago ?? 'N/A',
+                              jugador.estadoPago?.toUpperCase() ?? 'N/A',
                               style: const TextStyle(color: Colors.white),
                             ),
                             backgroundColor: jugador.estadoPago == 'pagado'
@@ -171,8 +168,40 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    PlayerDetailScreen(player: jugador),
+                                builder: (_) => PlayerDetailScreen(player: jugador),
+                              ),
+                            );
+                          },
+                          onLongPress: () {
+                            showModalBottomSheet(
+                              context: context,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                              ),
+                              builder: (context) => Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      leading: const Icon(Icons.edit, color: Color(0xFFD32F2F)),
+                                      title: const Text('Modificar jugador'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        // Navega a la pantalla de edición (implementa luego)
+                                        // Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerFormScreen(player: jugador)));
+                                      },
+                                    ),
+                                    ListTile(
+                                      leading: const Icon(Icons.delete, color: Colors.red),
+                                      title: const Text('Eliminar jugador'),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        // Implementa la lógica de eliminación luego
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -186,84 +215,6 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
           },
         );
       },
-    );
-  }
-}
-
-class PlayerDetailScreen extends StatelessWidget {
-  final PlayerModel player;
-
-  const PlayerDetailScreen({Key? key, required this.player}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final categoria = calcularCategoria(player.fechaDeNacimiento);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Jugador: " + player.nombres),
-        backgroundColor: const Color(0xFFD32F2F),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: (player.foto != null &&
-                        player.foto!.isNotEmpty)
-                    ? NetworkImage(player.foto!)
-                    : const AssetImage('assets/jugador.png') as ImageProvider,
-                backgroundColor: Colors.grey[300],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Detalles del Jugador',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFD32F2F),
-                letterSpacing: 1.2,
-                shadows: [
-                  Shadow(
-                    color: Colors.black12,
-                    offset: Offset(1, 2),
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Categoría: $categoria',
-              style: const TextStyle(fontSize: 18),
-            ),
-            Text(
-              'Apoderado: ${player.guardianId ?? "N/A"}',
-              style: const TextStyle(fontSize: 18),
-            ),
-            Text(
-              'Estado de Pago: ${player.estadoPago ?? "N/A"}',
-              style: const TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                // Acción al presionar el botón (por ejemplo, editar detalles del jugador)
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD32F2F),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 18),
-              ),
-              child: const Text('Editar Detalles'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

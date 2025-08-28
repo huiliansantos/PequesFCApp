@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/guardian_model.dart';
-import '../../models/player_model.dart'; // Para mostrar jugadores
-import '../../providers/player_provider.dart'; // Para obtener jugadores
-import '../../providers/guardian_provider.dart'; // Importa el provider de guardianes
+import '../../models/player_model.dart';
+import '../../providers/player_provider.dart';
+import '../../providers/guardian_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class GuardianFormScreen extends ConsumerStatefulWidget {
-  const GuardianFormScreen({Key? key}) : super(key: key);
+  final GuardianModel? guardian;
+
+  const GuardianFormScreen({Key? key, this.guardian}) : super(key: key);
 
   @override
   ConsumerState<GuardianFormScreen> createState() => _GuardianFormScreenState();
@@ -19,6 +21,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
   late TextEditingController ciController;
   late TextEditingController celularController;
   late TextEditingController direccionController;
+  late TextEditingController usuarioController;
+  late TextEditingController contrasenaController;
 
   List<String> jugadoresSeleccionados = [];
   String searchJugador = '';
@@ -26,10 +30,13 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
   @override
   void initState() {
     super.initState();
-    nombreController = TextEditingController();
-    ciController = TextEditingController();
-    celularController = TextEditingController();
-    direccionController = TextEditingController();
+    nombreController = TextEditingController(text: widget.guardian?.nombreCompleto ?? '');
+    ciController = TextEditingController(text: widget.guardian?.ci ?? '');
+    celularController = TextEditingController(text: widget.guardian?.celular ?? '');
+    direccionController = TextEditingController(text: widget.guardian?.direccion ?? '');
+    usuarioController = TextEditingController(text: widget.guardian?.usuario ?? '');
+    contrasenaController = TextEditingController(text: widget.guardian?.contrasena ?? '');
+    jugadoresSeleccionados = widget.guardian?.jugadoresIds.toList() ?? [];
   }
 
   @override
@@ -38,6 +45,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     ciController.dispose();
     celularController.dispose();
     direccionController.dispose();
+    usuarioController.dispose();
+    contrasenaController.dispose();
     super.dispose();
   }
 
@@ -56,22 +65,26 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
   Future<void> _saveGuardian() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final usuario = generarUsuario(nombreController.text, ciController.text);
-    final contrasena = generarContrasena(celularController.text);
-
     final newGuardian = GuardianModel(
-      id: Uuid().v4(),
+      id: widget.guardian?.id ?? const Uuid().v4(),
       nombreCompleto: nombreController.text,
       ci: ciController.text,
       celular: celularController.text,
       direccion: direccionController.text,
-      usuario: usuario,
-      contrasena: contrasena,
+      usuario: usuarioController.text,
+      contrasena: contrasenaController.text,
       jugadoresIds: jugadoresSeleccionados,
     );
 
-    final guardianRepo = ref.read(guardianRepositoryProvider);
-    await guardianRepo.addGuardian(newGuardian);
+    final repo = ref.read(guardianRepositoryProvider);
+
+    if (widget.guardian == null) {
+      // Crear nuevo apoderado
+      await repo.addGuardian(newGuardian);
+    } else {
+      // Modificar apoderado existente
+      await repo.updateGuardian(newGuardian);
+    }
 
     if (context.mounted) Navigator.pop(context);
   }
@@ -81,7 +94,9 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     final playersAsync = ref.watch(playersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrar Apoderado')),
+      appBar: AppBar(
+        title: Text(widget.guardian == null ? 'Registrar Apoderado' : 'Editar Apoderado'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -168,7 +183,7 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _saveGuardian,
-                child: const Text('Registrar Apoderado'),
+                child: Text(widget.guardian == null ? 'Registrar Apoderado' : 'Actualizar Apoderado'),
               ),
             ],
           ),

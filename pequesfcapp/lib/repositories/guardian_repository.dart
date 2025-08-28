@@ -71,4 +71,11 @@ class GuardianRepository {
     if (query.docs.isEmpty) return null;
     return GuardianModel.fromMap(query.docs.first.data());
   }
+
+  // Stream de un guardian por ID (actualización en tiempo real)
+  Stream<GuardianModel?> guardianStreamById(String id) {
+    return _db.collection('guardianes').doc(id).snapshots().map(
+      (doc) => doc.exists ? GuardianModel.fromMap(doc.data()!) : null,
+    );
+  }
 }

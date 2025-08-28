@@ -4,19 +4,25 @@ import '../../providers/guardian_provider.dart';
 import '../../models/guardian_model.dart';
 import 'guardian_detail_screen.dart';
 
-class GuardianListScreen extends ConsumerWidget {
+class GuardianListScreen extends ConsumerStatefulWidget {
   const GuardianListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GuardianListScreen> createState() => _GuardianListScreenState();
+}
+
+class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
+  String searchText = '';
+
+  @override
+  Widget build(BuildContext context) {
     final guardiansAsync = ref.watch(guardiansStreamProvider);
 
     return Scaffold(
-      //añadir un buscador por nombre y el titulo de apoderados mas o menos como en las otras ventanas en un column
-      body: Column(
+        body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
                 const Icon(Icons.family_restroom, color: Color(0xFFD32F2F), size: 28),
@@ -45,7 +51,7 @@ class GuardianListScreen extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre',
@@ -60,7 +66,9 @@ class GuardianListScreen extends ConsumerWidget {
                 prefixIcon: const Icon(Icons.search, color: Color(0xFFD32F2F)),
               ),
               onChanged: (value) {
-                // Lógica para filtrar la lista de apoderados por nombre
+                setState(() {
+                  searchText = value.trim().toLowerCase();
+                });
               },
             ),
           ),
@@ -68,32 +76,63 @@ class GuardianListScreen extends ConsumerWidget {
             child: guardiansAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
-              data: (guardians) => ListView.builder(
-                itemCount: guardians.length,
-                itemBuilder: (context, index) {
-                  final guardian = guardians[index];
-                  return ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFD32F2F),
-                      child: Icon(Icons.family_restroom, color: Colors.white),
-                    ),
-                    title: Text(guardian.nombreCompleto),
-                    subtitle: Text('CI: ${guardian.ci}'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => GuardianDetailScreen(guardian: guardian),
+              data: (guardians) {
+                final filtered = guardians.where((g) =>
+                  g.nombreCompleto.toLowerCase().contains(searchText)
+                ).toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No se encontraron apoderados.'));
+                }
+
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final guardian = filtered[index];
+                    return Card(
+                      elevation: 2,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFD32F2F),
+                          child: const Icon(Icons.family_restroom, color: Colors.white),
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
+                        title: Text(
+                          guardian.nombreCompleto,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text('CI: ${guardian.ci}'),
+                        trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFFD32F2F)),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => GuardianDetailScreen(guardianId: guardian.id),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
       ),
+      /*floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFFD32F2F),
+        icon: const Icon(Icons.person_add),
+        label: const Text('Agregar Apoderado'),
+        onPressed: () {
+          // Navega al formulario para crear un nuevo apoderado
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const GuardianFormScreen()),
+          );
+        },
+      ),*/
     );
   }
 }

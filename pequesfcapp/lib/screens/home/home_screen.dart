@@ -1,3 +1,4 @@
+import 'package:PequesFCApp/screens/results/resultados_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../players/player_list_screen.dart';
@@ -6,14 +7,18 @@ import '../guardians/guardian_form_screen.dart';
 import '../players/player_form_screen.dart';
 import '../payments/payment_management_screen.dart';
 import '../matches/match_schedule_screen.dart';
-import '../results/result_registration_screen.dart';
-import '../settings/settings_screen.dart';
+import '../results/resultado_form_screen.dart';
 import '../login/login_screen.dart';
 import '../matches/match_form_screen.dart';
+import '../asistencias/registro_asistencia_screen.dart';
+import '../asistencias/reporte_asistencia_screen.dart';
+import '../categorias/categoria_list_screen.dart';
+import '../categorias/categoria_equipo_form_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String role;
-  const HomeScreen({super.key, required this.role});
+  final String? jugadorId; // Para apoderado, si quieres pasar el id del hijo
+  const HomeScreen({super.key, required this.role, this.jugadorId});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,29 +27,46 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  // Pantallas para admin/profesor
   static final List<Widget> _adminScreens = [
     PlayerListScreen(),
     GuardianListScreen(),
     PaymentManagementScreen(),
     MatchScheduleScreen(),
-    ResultRegistrationScreen(),
-    SettingsScreen(),
+    ResultadosListScreen(),
+    CategoriaListScreen(), // Nueva pantalla de categorías
+  
   ];
 
-  static final List<BottomNavigationBarItem> _adminNavItems = [
+  // Pantallas para apoderado
+  static final List<Widget> _apoderadoScreens = [
+    PlayerListScreen(),
+    GuardianListScreen(),
+    PaymentManagementScreen(),
+    MatchScheduleScreen(),
+    ResultadosListScreen(),
+    CategoriaListScreen(),
+    // Reporte de asistencia solo para el hijo del apoderado
+    ReporteAsistenciaScreen(jugadorId: ''), // Debes pasar el id real del hijo
+  ];
+
+  static final List<BottomNavigationBarItem> _navItems = [
     BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Jugadores'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.family_restroom), label: 'Apoderados'),
+    BottomNavigationBarItem(icon: Icon(Icons.family_restroom), label: 'Apoderados'),
     BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Pagos'),
     BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Partidos'),
-    BottomNavigationBarItem(
-        icon: Icon(Icons.emoji_events), label: 'Resultados'),
-    BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Ajustes'),
+    BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Resultados'),
+    BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Asistencia'),
   ];
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+
+    // Elige las pantallas según el rol
+    final screens = widget.role == 'apoderado'
+        ? _apoderadoScreens
+        : _adminScreens;
 
     return Scaffold(
       appBar: AppBar(
@@ -88,9 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _adminScreens[_selectedIndex],
+      body: screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: _adminNavItems,
+        items: _navItems,
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: const Color(0xFFD32F2F),
@@ -108,66 +130,76 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Wrap(
                 children: [
                   ListTile(
-                    leading:
-                        const Icon(Icons.person_add, color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.person_add, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Jugador'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              const PlayerFormScreen(), // <-- Muestra el formulario de registro
+                          builder: (_) => const PlayerFormScreen(),
                         ),
                       );
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.family_restroom,
-                        color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.family_restroom, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Apoderado'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              const GuardianFormScreen(), // <-- Muestra el formulario de registro de apoderado
+                          builder: (_) => const GuardianFormScreen(),
                         ),
                       );
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.sports_soccer,
-                        color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.sports_soccer, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Partido'),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              const MatchFormScreen(), // <-- Muestra el formulario de registro de partido
+                          builder: (_) => const MatchFormScreen(),
                         ),
                       );
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.emoji_events,
-                        color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.emoji_events, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Resultado'),
                     onTap: () {
                       Navigator.pop(context);
-                      // Navega a la pantalla de nuevo resultado
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ResultadoFormScreen(),
+                        ),
+                      );
                     },
                   ),
                   ListTile(
-                    leading:
-                        const Icon(Icons.payment, color: Color(0xFFD32F2F)),
+                    leading: const Icon(Icons.payment, color: Color(0xFFD32F2F)),
                     title: const Text('Nuevo Pago'),
                     onTap: () {
                       Navigator.pop(context);
                       // Navega a la pantalla de nuevo pago
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.category, color: Color(0xFFD32F2F)),
+                    title: const Text('Nueva Categoría-Equipo'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CategoriaEquipoFormScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],

@@ -8,8 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class GuardianFormScreen extends ConsumerStatefulWidget {
   final GuardianModel? guardian;
+  final PlayerModel? jugador; // <-- Nuevo parámetro
 
-  const GuardianFormScreen({Key? key, this.guardian}) : super(key: key);
+  const GuardianFormScreen({Key? key, this.guardian, this.jugador}) : super(key: key);
 
   @override
   ConsumerState<GuardianFormScreen> createState() => _GuardianFormScreenState();
@@ -37,6 +38,9 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     usuarioController = TextEditingController(text: widget.guardian?.usuario ?? '');
     contrasenaController = TextEditingController(text: widget.guardian?.contrasena ?? '');
     jugadoresSeleccionados = widget.guardian?.jugadoresIds.toList() ?? [];
+    if (widget.jugador != null && !jugadoresSeleccionados.contains(widget.jugador!.id)) {
+      jugadoresSeleccionados.add(widget.jugador!.id);
+    }
   }
 
   @override

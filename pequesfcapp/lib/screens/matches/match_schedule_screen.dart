@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/match_provider.dart';
 import '../../models/match_model.dart';
+import 'match_detail_screen.dart';
+import 'match_form_screen.dart';
 
 class MatchScheduleScreen extends ConsumerStatefulWidget {
   const MatchScheduleScreen({super.key});
@@ -21,10 +23,8 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (partidos) {
-        // Obtén las categorías únicas
         final categorias = partidos.map((p) => p.categoria).toSet().toList();
 
-        // Filtra por categoría
         final partidosFiltrados = partidos.where((partido) {
           return categoriaSeleccionada == null || partido.categoria == categoriaSeleccionada;
         }).toList();
@@ -64,7 +64,7 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: DropdownButton<String>(
-                value: categoriaSeleccionada,
+                value: categorias.contains(categoriaSeleccionada) ? categoriaSeleccionada : null,
                 hint: const Text('Filtrar por categoría'),
                 isExpanded: true,
                 items: [
@@ -77,7 +77,7 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                   });
                 },
               ),
-            ),            
+            ),
             Expanded(
               child: partidosFiltrados.isEmpty
                   ? const Center(child: Text('No hay partidos para esta categoría.'))
@@ -87,37 +87,88 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                         final partido = partidosFiltrados[index];
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                          child: ListTile(
-                            leading: Image.asset(
-                              'assets/peques.png',
-                              width: 50,
-                              height: 50,
-                            ),
-                            title: Text('${partido.equipoRival} (${partido.categoria})'),
-                            subtitle: Text(
-                              'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year} '
-                              'Hora: ${partido.hora}\n'
-                              'Lugar: ${partido.cancha}',
-                            ),
+                          child: InkWell(
                             onTap: () {
-                              // Acción para ver detalle del partido
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MatchDetailScreen(match: partido),
+                                ),
+                              );
                             },
+                            onLongPress: () {
+                              showModalBottomSheet(
+                                context: context,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                ),
+                                builder: (context) => Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ListTile(
+                                        leading: const Icon(Icons.edit, color: Color(0xFFD32F2F)),
+                                        title: const Text('Modificar partido'),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => MatchFormScreen(match: partido),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      ListTile(
+                                        leading: const Icon(Icons.delete, color: Colors.red),
+                                        title: const Text('Eliminar partido'),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: const Text('¿Eliminar partido?'),
+                                              content: const Text('¿Estás seguro de eliminar este partido?'),
+                                              actions: [
+                                                TextButton(
+                                                  child: const Text('Cancelar'),
+                                                  onPressed: () => Navigator.pop(context),
+                                                ),
+                                                TextButton(
+                                                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                                  onPressed: () async {
+                                                    Navigator.pop(context);
+                                                    await ref.read(matchRepositoryProvider).deleteMatch(partido.id);
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                            child: ListTile(
+                              leading: Image.asset(
+                                'assets/peques.png',
+                                width: 50,
+                                height: 50,
+                              ),
+                              title: Text('${partido.equipoRival} (${partido.categoria})'),
+                              subtitle: Text(
+                                'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year} '
+                                'Hora: ${partido.hora}\n'
+                                'Lugar: ${partido.cancha}',
+                              ),
+                            ),
                           ),
                         );
                       },
                     ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0, right: 16.0),
-              child: Align(
-                alignment: Alignment.bottomRight,
-                child: FloatingActionButton(
-                  onPressed: () {
-                    // Acción para agregar un nuevo partido
-                  },
-                  child: const Icon(Icons.add),
-                ),
-              ),
             ),
           ],
         );

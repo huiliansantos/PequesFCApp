@@ -12,7 +12,8 @@ class PlayerModel {
   final String? guardianId;
   final String nacionalidad;
   final String? departamentoBolivia;
-  final String? estadoPago; // <-- NUEVO
+  final String? estadoPago;
+  final String categoriaEquipoId;
 
   PlayerModel({
     required this.id,
@@ -25,22 +26,34 @@ class PlayerModel {
     required this.nacionalidad,
     this.departamentoBolivia,
     this.guardianId,
-    this.estadoPago, // <-- NUEVO
+    this.estadoPago,
+    required this.categoriaEquipoId,
   });
 
   factory PlayerModel.fromMap(Map<String, dynamic> map) {
+    // Soporta fecha como String o Timestamp (Firestore)
+    DateTime fecha;
+    if (map['fechaDeNacimiento'] is String) {
+      fecha = DateTime.tryParse(map['fechaDeNacimiento'] as String) ?? DateTime.now();
+    } else if (map['fechaDeNacimiento'] != null && map['fechaDeNacimiento'] is dynamic && map['fechaDeNacimiento'].toString().contains('Timestamp')) {
+      fecha = (map['fechaDeNacimiento'] as dynamic).toDate();
+    } else {
+      fecha = DateTime.now();
+    }
+
     return PlayerModel(
-      id: map['id'] as String,
-      nombres: map['nombres'] as String,
-      apellido: map['apellido'] as String,
-      fechaDeNacimiento: DateTime.parse(map['fechaDeNacimiento'] as String),
-      genero: map['genero'] as String,
-      foto: map['foto'] as String,
-      ci: map['ci'] as String,
-      nacionalidad: map['nacionalidad'] as String,
+      id: map['id'] as String? ?? '',
+      nombres: map['nombres'] as String? ?? '',
+      apellido: map['apellido'] as String? ?? '',
+      fechaDeNacimiento: fecha,
+      genero: map['genero'] as String? ?? '',
+      foto: map['foto'] as String? ?? '',
+      ci: map['ci'] as String? ?? '',
+      nacionalidad: map['nacionalidad'] as String? ?? '',
       departamentoBolivia: map['departamentoBolivia'] as String?,
       guardianId: map['guardianId'] as String?,
-      estadoPago: map['estadoPago'] as String?, // <-- NUEVO
+      estadoPago: map['estadoPago'] as String?,
+      categoriaEquipoId: map['categoriaEquipoId'] as String? ?? '',
     );
   }
 
@@ -56,7 +69,8 @@ class PlayerModel {
       'nacionalidad': nacionalidad,
       'departamentoBolivia': departamentoBolivia,
       'guardianId': guardianId,
-      'estadoPago': estadoPago, // <-- NUEVO
+      'estadoPago': estadoPago,
+      'categoriaEquipoId': categoriaEquipoId,
     };
   }
 }

@@ -20,7 +20,7 @@ class PlayerRepository {
 
   // Actualizar un jugador
   Future<void> updatePlayer(PlayerModel player) async {
-    await jugadoresCollection.doc(player.id).update(player.toMap());
+    await jugadoresCollection.doc(player.id).set(player.toMap());
   }
 
   // Eliminar un jugador
@@ -48,5 +48,13 @@ class PlayerRepository {
               .map((doc) => PlayerModel.fromMap(doc.data() as Map<String, dynamic>))
               .toList(),
         );
+  }
+  Stream<PlayerModel?> playerStreamById(String id) {
+    return jugadoresCollection.doc(id).snapshots().map((snapshot) {
+      if (snapshot.exists) {
+        return PlayerModel.fromMap(snapshot.data() as Map<String, dynamic>);
+      }
+      return null;
+    });
   }
 }

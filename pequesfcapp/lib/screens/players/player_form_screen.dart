@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../models/player_model.dart';
 import '../../providers/player_provider.dart';
+import '../../providers/categoria_equipo_provider.dart';
 
 class PlayerFormScreen extends ConsumerStatefulWidget {
   final PlayerModel? player;
@@ -27,6 +28,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
   String genero = 'Masculino';
   String nacionalidad = 'Boliviana';
   String? departamentoBolivia;
+  String? categoriaEquipoId;
   List<String> nacionalidades = [
     'Argentina',
     'Boliviana',
@@ -59,6 +61,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
     genero = widget.player?.genero ?? 'Masculino';
     nacionalidad = widget.player?.nacionalidad ?? 'Boliviana';
     departamentoBolivia = widget.player?.departamentoBolivia;
+    categoriaEquipoId = widget.player?.categoriaEquipoId;
   }
 
   @override
@@ -143,6 +146,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
       nacionalidad: nacionalidadFinal,
       departamentoBolivia: nacionalidadFinal == 'Boliviana' ? departamentoBolivia : null,
       guardianId: widget.player?.guardianId,
+      categoriaEquipoId: categoriaEquipoId ?? '',
     );
 
     final playerRepo = ref.read(playerRepositoryProvider);
@@ -167,6 +171,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy', 'es_ES');
+    final categoriasEquiposAsync = ref.watch(categoriasEquiposProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.player == null ? 'Crear Jugador' : 'Editar Jugador'),
@@ -255,6 +260,23 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
                     return null;
                   },
                 ),
+              const SizedBox(height: 10),
+              categoriasEquiposAsync.when(
+                loading: () => const CircularProgressIndicator(),
+                error: (e, _) => Text('Error: $e'),
+                data: (lista) => DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(labelText: 'Categoría-Equipo'),
+                  value: lista.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
+                  items: lista.map((item) =>
+                    DropdownMenuItem(
+                      value: item.id,
+                      child: Text('${item.categoria} - ${item.equipo}'),
+                    )
+                  ).toList(),
+                  onChanged: (value) => setState(() => categoriaEquipoId = value),
+                  validator: (v) => v == null ? 'Selecciona una categoría-equipo' : null,
+                ),
+              ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _savePlayer,

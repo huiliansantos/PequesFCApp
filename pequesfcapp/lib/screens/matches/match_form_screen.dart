@@ -5,7 +5,9 @@ import '../../models/match_model.dart';
 import '../../providers/match_provider.dart';
 
 class MatchFormScreen extends ConsumerStatefulWidget {
-  const MatchFormScreen({Key? key}) : super(key: key);
+  final MatchModel? match;
+  
+  const MatchFormScreen({Key? key, this.match}) : super(key: key);
 
   @override
   ConsumerState<MatchFormScreen> createState() => _MatchFormScreenState();
@@ -34,9 +36,22 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   @override
   void initState() {
     super.initState();
-    equipoRivalController = TextEditingController();
-    canchaController = TextEditingController();
-    horaController = TextEditingController();
+    equipoRivalController = TextEditingController(text: widget.match?.equipoRival ?? '');
+    canchaController = TextEditingController(text: widget.match?.cancha ?? '');
+    horaController = TextEditingController(text: widget.match?.hora ?? '');
+    fecha = widget.match?.fecha;
+    torneo = widget.match?.torneo;
+    categoria = widget.match?.categoria;
+    equipoId = widget.match?.equipoId;
+    if (widget.match?.hora != null && widget.match!.hora.isNotEmpty) {
+      final parts = widget.match!.hora.split(':');
+      if (parts.length == 2) {
+        horaSeleccionada = TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 0,
+          minute: int.tryParse(parts[1]) ?? 0,
+        );
+      }
+    }
   }
 
   @override
@@ -50,8 +65,8 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
+      initialDate: fecha ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('es', 'ES'),
     );
@@ -83,8 +98,8 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
       return;
     }
 
-    final newMatch = MatchModel(
-      id: const Uuid().v4(),
+    final match = MatchModel(
+      id: widget.match?.id ?? const Uuid().v4(),
       equipoRival: equipoRivalController.text,
       cancha: canchaController.text,
       fecha: fecha!,
@@ -95,7 +110,11 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
     );
 
     final matchRepo = ref.read(matchRepositoryProvider);
-    await matchRepo.addMatch(newMatch);
+    if (widget.match == null) {
+      await matchRepo.addMatch(match);
+    } else {
+      await matchRepo.updateMatch(match);
+    }
 
     if (context.mounted) Navigator.pop(context);
   }
@@ -104,7 +123,9 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   Widget build(BuildContext context) {
     final dateFormat = fecha != null ? '${fecha!.day}/${fecha!.month}/${fecha!.year}' : '';
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrar Partido')),
+      appBar: AppBar(
+        title: Text(widget.match == null ? 'Registrar Partido' : 'Modificar Partido'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -154,11 +175,11 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                 },
                 validator: (v) => v == null ? 'Selecciona una categoría' : null,
               ),
-              if (categoria != null)
+              if (categoria != null && equiposPorCategoria[categoria] != null)
                 DropdownButtonFormField<String>(
                   value: equipoId,
                   decoration: const InputDecoration(labelText: 'Equipo'),
-                  items: equiposPorCategoria[categoria]!
+                  items: (equiposPorCategoria[categoria] ?? [])
                       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                       .toList(),
                   onChanged: (value) => setState(() => equipoId = value),
@@ -167,7 +188,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.save),
-                label: const Text('Guardar'),
+                label: Text(widget.match == null ? 'Guardar' : 'Actualizar'),
                 onPressed: _saveMatch,
               ),
             ],

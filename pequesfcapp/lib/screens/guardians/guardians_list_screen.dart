@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/guardian_provider.dart';
 import '../../models/guardian_model.dart';
 import 'guardian_detail_screen.dart';
+import 'guardian_form_screen.dart';
 
 class GuardianListScreen extends ConsumerStatefulWidget {
   const GuardianListScreen({super.key});
@@ -19,7 +20,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     final guardiansAsync = ref.watch(guardiansStreamProvider);
 
     return Scaffold(
-        body: Column(
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -112,6 +113,62 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                             ),
                           );
                         },
+                        onLongPress: () {
+                          showModalBottomSheet(
+                            context: context,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                            ),
+                            builder: (context) => Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.edit, color: Color(0xFFD32F2F)),
+                                    title: const Text('Modificar apoderado'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => GuardianFormScreen(guardian: guardian),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.delete, color: Colors.red),
+                                    title: const Text('Eliminar apoderado'),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('¿Eliminar apoderado?'),
+                                          content: const Text('¿Estás seguro de eliminar este apoderado?'),
+                                          actions: [
+                                            TextButton(
+                                              child: const Text('Cancelar'),
+                                              onPressed: () => Navigator.pop(context),
+                                            ),
+                                            TextButton(
+                                              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                              onPressed: () async {
+                                                Navigator.pop(context);
+                                                await ref.read(guardianRepositoryProvider).deleteGuardian(guardian.id);
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
@@ -121,18 +178,6 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
           ),
         ],
       ),
-      /*floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFFD32F2F),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Agregar Apoderado'),
-        onPressed: () {
-          // Navega al formulario para crear un nuevo apoderado
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const GuardianFormScreen()),
-          );
-        },
-      ),*/
     );
   }
 }

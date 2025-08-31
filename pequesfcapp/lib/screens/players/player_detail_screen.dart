@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/player_model.dart';
 import '../../providers/guardian_provider.dart';
+import '../guardians/guardian_detail_screen.dart';
+import '../guardians/guardian_form_screen.dart';
+import '../../models/categoria_equipo_model.dart';
+import '../../providers/categoria_equipo_provider.dart';
+
 String calcularCategoria(DateTime fechaNacimiento) {
   final ahora = DateTime.now();
   int edad = ahora.year - fechaNacimiento.year;
@@ -11,6 +16,9 @@ String calcularCategoria(DateTime fechaNacimiento) {
   }
   return 'Sub-$edad';
 }
+
+// La lógica de categoriaEquipo se mueve dentro del widget donde 'player' está disponible.
+
 class PlayerDetailScreen extends ConsumerWidget {
   final PlayerModel player;
 
@@ -21,6 +29,9 @@ class PlayerDetailScreen extends ConsumerWidget {
     final guardianAsync = player.guardianId != null
         ? ref.watch(guardianByIdProvider(player.guardianId!))
         : null;
+
+    // Obtén el objeto CategoriaEquipoModel usando el provider
+    final categoriaEquipoAsync = ref.watch(categoriasEquiposProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,9 +75,23 @@ class PlayerDetailScreen extends ConsumerWidget {
                     _buildDetailItem('CI', player.ci, Icons.badge),
                     _buildDetailItem(
                         'Nacionalidad', player.nacionalidad, Icons.flag),
-                    // categoria se calcula de su fecha de nacimiento por ejemplo si nacio el 2016 es sub - 9
                     _buildDetailItem('Categoría', calcularCategoria(player.fechaDeNacimiento), Icons.sports_soccer),
-                    //_buildDetailItem('Equipo', player.equipo!, Icons.sports_soccer),
+                    //mostrar el nombre del equipo que corresponde a ese ID
+                    categoriaEquipoAsync.when(
+                      loading: () => _buildDetailItem('Equipo', 'Cargando...', Icons.sports_soccer),
+                      error: (e, _) => _buildDetailItem('Equipo', 'Error', Icons.sports_soccer),
+                      data: (lista) {
+                        final categoriaEquipo = lista.firstWhere(
+                          (item) => item.id == player.categoriaEquipoId,
+                          orElse: () => CategoriaEquipoModel(id: '', categoria: 'Sin asignar', equipo: ''),
+                        );
+                        return _buildDetailItem(
+                          'Equipo',
+                          '${categoriaEquipo.categoria} - ${categoriaEquipo.equipo}',
+                          Icons.sports_soccer,
+                        );
+                      },
+                    ),
                     _buildDetailItem(
                       'Estado de Pago',
                       player.estadoPago ?? 'Sin registro',
@@ -74,15 +99,12 @@ class PlayerDetailScreen extends ConsumerWidget {
                       valueColor: player.estadoPago == 'Pagado'
                           ? Colors.green
                           : Colors.red,
-                      //podemos aumentar categoria y equipo
-                      // si tenemos la categoria y equipo en el modelo PlayerModel
                     ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            // Subtítulo para apoderado
             const Text(
               'Detalles del Apoderado',
               style: TextStyle(
@@ -104,42 +126,62 @@ class PlayerDetailScreen extends ConsumerWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: guardianAsync == null
-                    ? const ListTile(
-                        leading: Icon(Icons.person_search),
-                        title: Text('Apoderado'),
-                        subtitle: Text('Sin asignar'),
-                      )
-                    : guardianAsync.when(
-                        loading: () => const ListTile(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  if (player.guardianId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GuardianDetailScreen(guardianId: player.guardianId!),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GuardianFormScreen(jugador: player), // <-- Aquí pasas el jugador
+                      ),
+                    );
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: guardianAsync == null
+                      ? const ListTile(
                           leading: Icon(Icons.person_search),
                           title: Text('Apoderado'),
-                          subtitle: Text('Cargando...'),
+                          subtitle: Text('Sin asignar'),
+                        )
+                      : guardianAsync.when(
+                          loading: () => const ListTile(
+                            leading: Icon(Icons.person_search),
+                            title: Text('Apoderado'),
+                            subtitle: Text('Cargando...'),
+                          ),
+                          error: (e, _) => ListTile(
+                            leading: const Icon(Icons.error, color: Colors.red),
+                            title: const Text('Apoderado'),
+                            subtitle: Text('Error: $e'),
+                          ),
+                          data: (guardian) => guardian == null
+                              ? const ListTile(
+                                  leading: Icon(Icons.person_search),
+                                  title: Text('Apoderado'),
+                                  subtitle: Text('Sin asignar'),
+                                )
+                              : Column(
+                                  children: [
+                                    _buildDetailItem('Nombre',
+                                        guardian.nombreCompleto, Icons.person),
+                                    _buildDetailItem(
+                                        'CI', guardian.ci, Icons.badge),
+                                    _buildDetailItem(
+                                        'Celular', guardian.celular, Icons.phone),
+                                  ],
+                                ),
                         ),
-                        error: (e, _) => ListTile(
-                          leading: const Icon(Icons.error, color: Colors.red),
-                          title: const Text('Apoderado'),
-                          subtitle: Text('Error: $e'),
-                        ),
-                        data: (guardian) => guardian == null
-                            ? const ListTile(
-                                leading: Icon(Icons.person_search),
-                                title: Text('Apoderado'),
-                                subtitle: Text('Sin asignar'),
-                              )
-                            : Column(
-                                children: [
-                                  _buildDetailItem('Nombre',
-                                      guardian.nombreCompleto, Icons.person),
-                                  _buildDetailItem(
-                                      'CI', guardian.ci, Icons.badge),
-                                  _buildDetailItem(
-                                      'Celular', guardian.celular, Icons.phone),
-                                ],
-                              ),
-                      ),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -153,7 +195,12 @@ class PlayerDetailScreen extends ConsumerWidget {
               ),
               onPressed: () {
                 // Aquí puedes navegar a una pantalla para asignar o cambiar apoderado
-                // haciendo click que vaya al editar apoderado
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GuardianFormScreen(jugador: player), // <-- Aquí pasas el jugador
+                  ),
+                );
                 // Navigator.push(context, MaterialPageRoute(builder: (_) => AsignarApoderadoScreen(player: player)));
               },
               label: const Text('Asignar o Cambiar Apoderado'),

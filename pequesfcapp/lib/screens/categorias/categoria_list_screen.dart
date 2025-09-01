@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/categoria_equipo_provider.dart';
 import '../../models/categoria_equipo_model.dart';
 import '../asistencias/registro_asistencia_screen.dart';
+import '../asistencias/ver_lista_asistencia_screen.dart'; // Debes crear esta pantalla
 
 class CategoriaListScreen extends ConsumerStatefulWidget {
   const CategoriaListScreen({Key? key}) : super(key: key);
@@ -19,7 +20,7 @@ class _CategoriaListScreenState extends ConsumerState<CategoriaListScreen> {
     final categoriasEquiposAsync = ref.watch(categoriasEquiposProvider);
 
     return Scaffold(
-        body: Column(
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -97,19 +98,44 @@ class _CategoriaListScreenState extends ConsumerState<CategoriaListScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text('Equipo: ${item.equipo}'),
-                        trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFFD32F2F)),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegistroAsistenciaScreen(
-                                categoriaEquipoId: item.id,
-                                entrenamientoId: 'entrenamientoId', // Puedes generar o seleccionar el id del entrenamiento
-                                fecha: DateTime.now(),
-                                rol: 'rol', // Puedes generar o seleccionar el rol del usuario
-                              ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.checklist, color: Colors.green),
+                              tooltip: 'Registrar asistencia',
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RegistroAsistenciaScreen(
+                                      categoriaEquipoId: item.id,
+                                      entrenamientoId: 'entrenamientoId', // tu lógica para el id
+                                      fecha: DateTime.now(),
+                                      rol: 'admin', // tu lógica para el rol
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          );
+                            IconButton(
+                              icon: const Icon(Icons.list_alt, color: Colors.blue),
+                              tooltip: 'Ver asistencia',
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => VerListaAsistenciaScreen(
+                                      categoriaEquipoId: item.id,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          // Opcional: puedes usar el tap para editar o ver detalles
                         },
                         onLongPress: () {
                           // Opcional: menú contextual para modificar/eliminar categoría-equipo

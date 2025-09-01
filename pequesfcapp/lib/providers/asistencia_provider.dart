@@ -11,3 +11,6 @@ final asistenciasPorJugadorProvider = StreamProvider.family<List<AsistenciaModel
 final asistenciasPorEntrenamientoProvider = StreamProvider.family<List<AsistenciaModel>, String>((ref, entrenamientoId) {
   return ref.watch(asistenciaRepositoryProvider).asistenciasPorEntrenamiento(entrenamientoId);
 });
+final asistenciasPorCategoriaEquipoProvider = StreamProvider.family<List<AsistenciaModel>, String>((ref, categoriaEquipoId) {
+  return ref.watch(asistenciaRepositoryProvider).asistenciasPorCategoriaEquipo(categoriaEquipoId);
+});

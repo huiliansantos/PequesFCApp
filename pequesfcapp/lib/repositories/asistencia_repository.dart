@@ -22,4 +22,13 @@ class AsistenciaRepository {
       .snapshots()
       .map((snap) => snap.docs.map((doc) => AsistenciaModel.fromMap(doc.data())).toList());
   }
+  Stream<List<AsistenciaModel>> asistenciasPorCategoriaEquipo(String categoriaEquipoId) {
+    return FirebaseFirestore.instance
+      .collection('asistencias')
+      .where('categoriaEquipoId', isEqualTo: categoriaEquipoId)
+      .snapshots()
+      .map((snapshot) =>
+        snapshot.docs.map((doc) => AsistenciaModel.fromMap(doc.data())).toList()
+      );
+  }
 }

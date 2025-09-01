@@ -6,13 +6,12 @@ import '../../providers/asistencia_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
 import '../../models/categoria_equipo_model.dart';
-//import '../../providers/usuario_provider.dart'; // Tu provider de usuario actual
 
 class RegistroAsistenciaScreen extends ConsumerStatefulWidget {
   final String categoriaEquipoId;
   final String entrenamientoId;
   final DateTime fecha;
-  final String rol; // <-- Nuevo parámetro
+  final String rol;
 
   const RegistroAsistenciaScreen({
     Key? key,
@@ -28,11 +27,13 @@ class RegistroAsistenciaScreen extends ConsumerStatefulWidget {
 
 class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScreen> {
   final Map<String, bool> asistenciaMap = {};
+  final Map<String, bool> permisoMap = {};
 
   @override
   Widget build(BuildContext context) {
     final jugadoresAsync = ref.watch(playersProvider);
     final categoriaEquipoAsync = ref.watch(categoriasEquiposProvider);
+    final asistenciasAsync = ref.watch(asistenciasPorEntrenamientoProvider(widget.entrenamientoId));
 
     return Scaffold(
       appBar: AppBar(
@@ -52,61 +53,177 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (jugadores) {
-              final jugadoresFiltrados = jugadores.where(
-                (j) => j.categoriaEquipoId == widget.categoriaEquipoId
-              ).toList();
+              return asistenciasAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Error: $e')),
+                data: (asistencias) {
+                  // Filtra jugadores que NO tienen asistencia registrada para este entrenamiento y fecha
+                  final jugadoresFiltrados = jugadores.where((j) {
+                    final yaRegistrado = asistencias.any((a) =>
+                      a.jugadorId == j.id &&
+                      a.fecha.day == widget.fecha.day &&
+                      a.fecha.month == widget.fecha.month &&
+                      a.fecha.year == widget.fecha.year
+                    );
+                    return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
+                  }).toList();
 
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'Equipo: ${categoriaEquipo.equipo}  |  Categoría: ${categoriaEquipo.categoria}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFD32F2F),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: jugadoresFiltrados.isEmpty
-                      ? const Center(child: Text('No hay jugadores en este equipo.'))
-                      : ListView.builder(
-                          itemCount: jugadoresFiltrados.length,
-                          itemBuilder: (context, index) {
-                            final jugador = jugadoresFiltrados[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: (widget.rol == 'admin' || widget.rol == 'profesor')
-                                ? CheckboxListTile(
-                                    title: Text('${jugador.nombres} ${jugador.apellido}'),
-                                    subtitle: Text('CI: ${jugador.ci}'),
-                                    value: asistenciaMap[jugador.id] ?? false,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        asistenciaMap[jugador.id] = value ?? false;
-                                      });
-                                    },
-                                    secondary: CircleAvatar(
-                                      backgroundImage: const AssetImage('assets/jugador.png'),
-                                    ),
-                                  )
-                                : ListTile(
-                                    title: Text('${jugador.nombres} ${jugador.apellido}'),
-                                    subtitle: Text('CI: ${jugador.ci}'),
-                                    trailing: Icon(Icons.visibility, color: Colors.grey),
-                                  ),
-                            );
-                          },
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Equipo: ${categoriaEquipo.equipo}  |  Categoría: ${categoriaEquipo.categoria}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD32F2F),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Fecha: ${widget.fecha.day}/${widget.fecha.month}/${widget.fecha.year}  Hora: ${TimeOfDay.fromDateTime(widget.fecha).format(context)}',
+                              style: const TextStyle(fontSize: 16, color: Colors.black87),
+                            ),
+                          ],
                         ),
-                  ),
-                ],
+                      ),
+                      Expanded(
+                        child: jugadoresFiltrados.isEmpty
+                          ? const Center(
+                              child: Text(
+                                '¡Toda la asistencia del día fue registrada!',
+                                style: TextStyle(fontSize: 18, color: Colors.green),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: jugadoresFiltrados.length,
+                              itemBuilder: (context, index) {
+                                final jugador = jugadoresFiltrados[index];
+                                final asistio = asistenciaMap[jugador.id] ?? false;
+                                final permiso = permisoMap[jugador.id] ?? false;
+
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundImage: const AssetImage('assets/jugador.png'),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('${jugador.nombres} ${jugador.apellido}'),
+                                              Text('CI: ${jugador.ci}', style: const TextStyle(fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Checkbox(
+                                                value: permisoMap[jugador.id] ?? false,
+                                                onChanged: (widget.rol == 'admin' || widget.rol == 'profesor')
+                                                    ? (value) {
+                                                        setState(() {
+                                                          permisoMap[jugador.id] = value ?? false;
+                                                          if (value == true) {
+                                                            asistenciaMap[jugador.id] = false;
+                                                          }
+                                                        });
+                                                      }
+                                                    : null,
+                                                activeColor: Colors.amber,
+                                              ),
+                                              const Text('Permiso', style: TextStyle(fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Checkbox(
+                                                value: asistenciaMap[jugador.id] ?? false,
+                                                onChanged: (widget.rol == 'admin' || widget.rol == 'profesor')
+                                                    ? (value) {
+                                                        setState(() {
+                                                          asistenciaMap[jugador.id] = value ?? false;
+                                                          if (value == true) {
+                                                            permisoMap[jugador.id] = false;
+                                                          }
+                                                        });
+                                                      }
+                                                    : null,
+                                                activeColor: Colors.green,
+                                              ),
+                                              const Text('Asistió', style: TextStyle(fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );
         },
-      ),   
+      ),
+      //para ir a ver asistencias
+
+
+      floatingActionButton: (widget.rol == 'admin' || widget.rol == 'profesor')
+        ? FloatingActionButton.extended(
+            backgroundColor: const Color(0xFFD32F2F),
+            icon: const Icon(Icons.save),
+            label: const Text('Guardar Asistencia'),
+            onPressed: () async {
+              final jugadores = ref.read(playersProvider).value ?? [];
+              final asistencias = ref.read(asistenciasPorEntrenamientoProvider(widget.entrenamientoId)).value ?? [];
+              final jugadoresFiltrados = jugadores.where((j) {
+                final yaRegistrado = asistencias.any((a) =>
+                  a.jugadorId == j.id &&
+                  a.fecha.day == widget.fecha.day &&
+                  a.fecha.month == widget.fecha.month &&
+                  a.fecha.year == widget.fecha.year
+                );
+                return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
+              }).toList();
+              final repo = ref.read(asistenciaRepositoryProvider);
+              final horaRegistro = DateTime.now();
+              for (final jugador in jugadoresFiltrados) {
+                final asistencia = AsistenciaModel(
+                  id: const Uuid().v4(),
+                  jugadorId: jugador.id,
+                  entrenamientoId: widget.entrenamientoId,
+                  categoriaEquipoId: widget.categoriaEquipoId,
+                  fecha: widget.fecha,
+                  presente: asistenciaMap[jugador.id] ?? false,
+                  permiso: permisoMap[jugador.id] ?? false,
+                  horaRegistro: horaRegistro,
+                  observacion: null,
+                );
+                await repo.registrarAsistencia(asistencia);
+              }
+              if (context.mounted) Navigator.pop(context);
+            },
+          )
+        : null,
     );
   }
 }

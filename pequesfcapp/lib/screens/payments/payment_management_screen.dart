@@ -1,67 +1,66 @@
 import 'package:flutter/material.dart';
-import 'payment_detail_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/pago_provider.dart';
+import '../../providers/player_provider.dart';
+import '../../models/pago_model.dart';
+import '../../models/player_model.dart';
+import 'payment_form.dart';
+import 'payment_history_screen.dart';
 
-// Simulación de datos de pagos
-final List<Map<String, dynamic>> pagos = [
-  {
-    'jugador': 'Juan Pérez',
-    'categoria': 'Sub-10',
-    'mes': 'Junio',
-    'monto': 100.0,
-    'estado': 'pagado',
-    'comprobanteUrl': null,
-    'fechaRegistro': DateTime(2024, 6, 10),
-  },
-  {
-    'jugador': 'Ana López',
-    'categoria': 'Sub-8',
-    'mes': 'Junio',
-    'monto': 100.0,
-    'estado': 'pendiente',
-    'comprobanteUrl': null,
-    'fechaRegistro': DateTime(2024, 6, 12),
-  },
+const List<String> mesesPendientesPorDefecto = [
+  'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-class PaymentManagementScreen extends StatefulWidget {
-  const PaymentManagementScreen({super.key});
+class PaymentManagementScreen extends ConsumerStatefulWidget {
+  const PaymentManagementScreen({Key? key}) : super(key: key);
 
   @override
-  State<PaymentManagementScreen> createState() => _PaymentManagementScreenState();
+  ConsumerState<PaymentManagementScreen> createState() => _PaymentManagementScreenState();
 }
 
-class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
+class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScreen> {
   String busqueda = '';
   String? categoriaSeleccionada;
+  String estadoSeleccionado = 'todos';
 
   @override
   Widget build(BuildContext context) {
-    // Obtén las categorías únicas
-    final categorias = pagos.map((p) => p['categoria'] as String).toSet().toList();
+    final jugadoresAsync = ref.watch(playersProvider);
 
-    // Filtra por categoría y búsqueda
-    final pagosFiltrados = pagos.where((pago) {
-      final coincideCategoria = categoriaSeleccionada == null || pago['categoria'] == categoriaSeleccionada;
-      final coincideBusqueda = pago['jugador'].toLowerCase().contains(busqueda.toLowerCase()) ||
-          pago['categoria'].toLowerCase().contains(busqueda.toLowerCase());
-      return coincideCategoria && coincideBusqueda;
-    }).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: DropdownButton<String>(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Gestión de Pagos'),
+        backgroundColor: const Color(0xFFD32F2F),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar jugador',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        busqueda = value.trim().toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
                   value: categoriaSeleccionada,
-                  hint: const Text('Filtrar por categoría'),
-                  isExpanded: true,
+                  hint: const Text('Categoría'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Todas')),
-                    ...categorias.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))),
+                    ...['2016', '2017', '2018', '2019', '2020'].map(
+                      (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                    ),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -69,106 +68,120 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
                     });
                   },
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar jugador o categoría',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: estadoSeleccionado,
+                  items: const [
+                    DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                    DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
+                    DropdownMenuItem(value: 'pendiente', child: Text('Pendientes')),
+                    DropdownMenuItem(value: 'atrasado', child: Text('Atrasados')),
+                  ],
                   onChanged: (value) {
                     setState(() {
-                      busqueda = value;
+                      estadoSeleccionado = value ?? 'todos';
                     });
                   },
                 ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Row(
-            children: [
-              const Icon(Icons.payment, color: Color(0xFFD32F2F), size: 28),
-              const SizedBox(width: 8),
-              Text(
-                'Gestión de Pagos',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFD32F2F),
-                  letterSpacing: 1.2,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black12,
-                      offset: Offset(1, 2),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: pagosFiltrados.length,
-            itemBuilder: (context, index) {
-              final pago = pagosFiltrados[index];
-              final historial = pagos
-                  .where((p) => p['jugador'] == pago['jugador'])
-                  .toList();
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: ListTile(
-                  leading: Icon(
-                    pago['estado'] == 'pagado'
-                        ? Icons.check_circle
-                        : Icons.hourglass_bottom,
-                    color: pago['estado'] == 'pagado' ? Colors.green : Colors.orange,
-                  ),
-                  title: Text('${pago['jugador']} (${pago['categoria']})'),
-                  subtitle: Text('Mes: ${pago['mes']} - Monto: S/ ${pago['monto']}'),
-                  trailing: Chip(
-                    label: Text(
-                      pago['estado'].toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    backgroundColor:
-                        pago['estado'] == 'pagado' ? Colors.green : Colors.red,
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PaymentDetailScreen(
-                          jugador: pago['jugador'],
-                          historialPagos: historial,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16.0, right: 16.0),
-          child: Align(
-            alignment: Alignment.bottomRight,
-            child: FloatingActionButton(
-              onPressed: () {
-                // Acción para registrar pago manualmente
-              },
-              child: const Icon(Icons.add),
+              ],
             ),
           ),
-        ),
-      ],
+          Expanded(
+            child: jugadoresAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (jugadores) {
+                final jugadoresFiltrados = jugadores.where((j) {
+                  final coincideBusqueda = j.nombres.toLowerCase().contains(busqueda) ||
+                      j.apellido.toLowerCase().contains(busqueda);
+                  final coincideCategoria = categoriaSeleccionada == null ||
+                      j.categoriaEquipoId == categoriaSeleccionada;
+                  return coincideBusqueda && coincideCategoria;
+                }).toList();
+
+                if (jugadoresFiltrados.isEmpty) {
+                  return const Center(child: Text('No hay jugadores encontrados.'));
+                }
+
+                return ListView.builder(
+                  itemCount: jugadoresFiltrados.length,
+                  itemBuilder: (context, index) {
+                    final jugador = jugadoresFiltrados[index];
+                    final pagosAsync = ref.watch(pagosPorJugadorProvider(jugador.id));
+                    return pagosAsync.when(
+                      loading: () => const ListTile(title: Text('Cargando pagos...')),
+                      error: (e, _) => ListTile(title: Text('Error: $e')),
+                      data: (pagos) {
+                        // Filtra pagos por estado si corresponde
+                        final pagosFiltrados = estadoSeleccionado == 'todos'
+                            ? pagos
+                            : pagos.where((p) => p.estado == estadoSeleccionado).toList();
+
+                        // Verifica si hay algún mes pendiente
+                        final pagosPorMes = {for (var p in pagos) p.mes: p};
+                        bool tienePendiente = mesesPendientesPorDefecto.any((mes) =>
+                          !pagosPorMes.containsKey(mes) || (pagosPorMes[mes]?.estado != 'pagado')
+                        );
+
+                        Color estadoColor;
+                        String estadoTexto;
+                        if (tienePendiente) {
+                          estadoColor = Colors.orange;
+                          estadoTexto = 'Pendiente';
+                        } else if (pagosFiltrados.isNotEmpty && pagosFiltrados.last.estado == 'pagado') {
+                          estadoColor = Colors.green;
+                          estadoTexto = 'Pagado';
+                        } else if (pagosFiltrados.isNotEmpty && pagosFiltrados.last.estado == 'atrasado') {
+                          estadoColor = Colors.red;
+                          estadoTexto = 'Atrasado';
+                        } else {
+                          estadoColor = Colors.grey;
+                          estadoTexto = 'Sin registro';
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: estadoColor,
+                              child: const Icon(Icons.person, color: Colors.white),
+                            ),
+                            title: Text('${jugador.nombres} ${jugador.apellido}'),
+                            subtitle: Text('Categoría: ${jugador.categoriaEquipoId}'),
+                            trailing: Chip(
+                              label: Text(estadoTexto, style: const TextStyle(color: Colors.white)),
+                              backgroundColor: estadoColor,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PaymentHistoryScreen(
+                                    jugadorId: jugador.id,
+                                    jugadorNombre: '${jugador.nombres} ${jugador.apellido}',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Puedes navegar al formulario de pago para un jugador seleccionado
+        },
+        child: const Icon(Icons.add),
+        backgroundColor: const Color(0xFFD32F2F),
+        tooltip: 'Registrar pago',
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import '../models/player_model.dart';
 
 class PlayerRepository {
@@ -56,5 +57,26 @@ class PlayerRepository {
       }
       return null;
     });
+  }
+
+  Future<void> actualizarGuardian(String jugadorId, String nuevoGuardianId) async {
+    await FirebaseFirestore.instance
+      .collection('jugadores')
+      .doc(jugadorId)
+      .update({'guardianId': nuevoGuardianId});
+  }
+
+  Future<void> _saveGuardian(BuildContext context, List<String> jugadoresSeleccionados, String newGuardianId) async {
+    for (final jugadorId in jugadoresSeleccionados) {
+      await actualizarGuardian(jugadorId, newGuardianId);
+      print('Guardian actualizado para jugador $jugadorId');
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Apoderado actualizado correctamente')),
+      );
+      // Navega a la lista de apoderados
+      Navigator.pushReplacementNamed(context, '/guardians');
+    }
   }
 }

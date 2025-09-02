@@ -29,41 +29,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Pantallas para admin/profesor
   static final List<Widget> _adminScreens = [
-    PlayerListScreen(),
-    GuardianListScreen(),
-    PaymentManagementScreen(),
-    MatchScheduleScreen(),
-    ResultadosListScreen(),
-    CategoriaListScreen(), // Nueva pantalla de categorías
-  
+    PlayerListScreen(),                // Jugadores
+    GuardianListScreen(),              // Apoderados
+    MatchScheduleScreen(),             // Partidos
+    ResultadosListScreen(),            // Resultados
+    PaymentManagementScreen(),                                // Pagos
+    CategoriaListScreen(),            // Asistencia (puedes cambiar por la pantalla principal de asistencia)
   ];
 
   // Pantallas para apoderado
-  static final List<Widget> _apoderadoScreens = [
+  List<Widget> get _apoderadoScreens => [
     PlayerListScreen(),
     GuardianListScreen(),
-    PaymentManagementScreen(),
     MatchScheduleScreen(),
     ResultadosListScreen(),
-    CategoriaListScreen(),
-    // Reporte de asistencia solo para el hijo del apoderado
-    ReporteAsistenciaScreen(jugadorId: ''), // Debes pasar el id real del hijo
+    PaymentManagementScreen(),
+    ReporteAsistenciaScreen(jugadorId: widget.jugadorId ?? ''),
   ];
 
   static final List<BottomNavigationBarItem> _navItems = [
     BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Jugadores'),
     BottomNavigationBarItem(icon: Icon(Icons.family_restroom), label: 'Apoderados'),
-    BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Pagos'),
     BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Partidos'),
     BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Resultados'),
+    BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Pagos'),
     BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Asistencia'),
   ];
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-
-    // Elige las pantallas según el rol
     final screens = widget.role == 'apoderado'
         ? _apoderadoScreens
         : _adminScreens;
@@ -186,6 +181,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: const Text('Nuevo Pago'),
                     onTap: () {
                       Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PaymentManagementScreen(),
+                        ),
+                      );
                       // Navega a la pantalla de nuevo pago
                     },
                   ),

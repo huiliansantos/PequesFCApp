@@ -1,0 +1,191 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/pago_model.dart';
+import '../../providers/pago_provider.dart';
+
+const List<String> mesesDelAno = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre'
+];
+
+class PaymentForm extends ConsumerStatefulWidget {
+  final String jugadorId;
+  final String jugadorNombre;
+  final String? mesInicial; // <-- Nuevo parámetro
+
+  const PaymentForm({
+    Key? key,
+    required this.jugadorId,
+    required this.jugadorNombre,
+    this.mesInicial,
+  }) : super(key: key);
+
+  @override
+  ConsumerState<PaymentForm> createState() => _PaymentFormState();
+}
+
+class _PaymentFormState extends ConsumerState<PaymentForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _montoController = TextEditingController();
+  final _observacionController = TextEditingController();
+  DateTime _fechaPago = DateTime.now();
+  String _estado = 'pagado';
+  String? _mesSeleccionado;
+
+  @override
+  void initState() {
+    super.initState();
+    _mesSeleccionado = widget.mesInicial; // <-- Selecciona el mes recibido
+  }
+
+  @override
+  void dispose() {
+    _montoController.dispose();
+    _observacionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Registrar pago a ${widget.jugadorNombre}'),
+        backgroundColor: const Color(0xFFD32F2F),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              TextFormField(
+                controller: _montoController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Monto (S/)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Ingrese el monto';
+                  if (double.tryParse(value) == null) return 'Monto inválido';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _mesSeleccionado,
+                decoration: const InputDecoration(
+                  labelText: 'Mes',
+                  border: OutlineInputBorder(),
+                ),
+                items: mesesDelAno.map((mes) =>
+                  DropdownMenuItem(value: mes, child: Text(mes))
+                ).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _mesSeleccionado = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Seleccione el mes';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Fecha de pago'),
+                subtitle: Text(
+                  '${_fechaPago.day}/${_fechaPago.month}/${_fechaPago.year}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.calendar_today),
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _fechaPago,
+                      firstDate: DateTime(2023),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _fechaPago = picked;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _estado,
+                decoration: const InputDecoration(
+                  labelText: 'Estado',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'pagado', child: Text('Pagado')),
+                  DropdownMenuItem(value: 'pendiente', child: Text('Pendiente')),
+                  DropdownMenuItem(value: 'atrasado', child: Text('Atrasado')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _estado = value ?? 'pagado';
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _observacionController,
+                decoration: const InputDecoration(
+                  labelText: 'Observación (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar pago'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: _guardarPago,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _guardarPago() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final pago = PagoModel(
+        id: const Uuid().v4(),
+        jugadorId: widget.jugadorId,
+        fechaPago: _fechaPago,
+        monto: double.tryParse(_montoController.text) ?? 0.0,
+        mes: _mesSeleccionado ?? '',
+        estado: _estado,
+        observacion: _observacionController.text.trim().isEmpty
+            ? null
+            : _observacionController.text.trim(),
+      );
+      await ref.read(pagoRepositoryProvider).registrarPago(pago);
+      if (context.mounted) Navigator.pop(context);
+    }
+  }
+}

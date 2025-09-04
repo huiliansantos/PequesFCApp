@@ -11,7 +11,8 @@ class ResultadosListScreen extends ConsumerStatefulWidget {
   const ResultadosListScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<ResultadosListScreen> createState() => _ResultadosListScreenState();
+  ConsumerState<ResultadosListScreen> createState() =>
+      _ResultadosListScreenState();
 }
 
 class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
@@ -23,13 +24,14 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
     final partidosAsync = ref.watch(matchesProvider);
 
     return Scaffold(
-        body: Column(
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
               children: [
-                const Icon(Icons.sports_soccer, color: Color(0xFFD32F2F), size: 28),
+                const Icon(Icons.sports_soccer,
+                    color: Color(0xFFD32F2F), size: 28),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -58,16 +60,19 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (partidos) {
-              final categorias = partidos.map((p) => p.categoria).toSet().toList();
+              final categorias =
+                  partidos.map((p) => p.categoriaEquipoId).toSet().toList();
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: DropdownButton<String>(
                   value: categoriaSeleccionada,
                   hint: const Text('Filtrar por categoría'),
                   isExpanded: true,
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Todas')),
-                    ...categorias.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))),
+                    ...categorias.map((cat) =>
+                        DropdownMenuItem(value: cat, child: Text(cat))),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -87,7 +92,8 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                 error: (e, _) => Center(child: Text('Error: $e')),
                 data: (partidos) {
                   if (resultados.isEmpty) {
-                    return const Center(child: Text('No hay resultados registrados.'));
+                    return const Center(
+                        child: Text('No hay resultados registrados.'));
                   }
                   // Filtrar resultados por categoría seleccionada
                   final resultadosFiltrados = resultados.where((resultado) {
@@ -100,16 +106,16 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                         fecha: DateTime.now(),
                         hora: '',
                         torneo: '',
-                        categoria: '',
-                        equipoId: '',
+                        categoriaEquipoId: '',
                       ),
                     );
                     return categoriaSeleccionada == null ||
-                        partido.categoria == categoriaSeleccionada;
+                        partido.categoriaEquipoId == categoriaSeleccionada;
                   }).toList();
 
                   if (resultadosFiltrados.isEmpty) {
-                    return const Center(child: Text('No hay resultados para esta categoría.'));
+                    return const Center(
+                        child: Text('No hay resultados para esta categoría.'));
                   }
 
                   return ListView.builder(
@@ -125,20 +131,22 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                           fecha: DateTime.now(),
                           hora: '',
                           torneo: '',
-                          categoria: '',
-                          equipoId: '',
+                          categoriaEquipoId: '',
                         ),
                       );
                       return Card(
                         elevation: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         child: InkWell(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ResultadoDetailScreen(resultado: resultado),
+                                builder: (_) =>
+                                    ResultadoDetailScreen(resultado: resultado),
                               ),
                             );
                           },
@@ -146,7 +154,8 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                             showModalBottomSheet(
                               context: context,
                               shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16)),
                               ),
                               builder: (context) => Padding(
                                 padding: const EdgeInsets.all(24.0),
@@ -154,20 +163,23 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     ListTile(
-                                      leading: const Icon(Icons.edit, color: Color(0xFFD32F2F)),
+                                      leading: const Icon(Icons.edit,
+                                          color: Color(0xFFD32F2F)),
                                       title: const Text('Modificar resultado'),
                                       onTap: () {
                                         Navigator.pop(context);
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => ResultadoFormScreen(resultado: resultado),
+                                            builder: (_) => ResultadoFormScreen(
+                                                resultado: resultado),
                                           ),
                                         );
                                       },
                                     ),
                                     ListTile(
-                                      leading: const Icon(Icons.delete, color: Colors.red),
+                                      leading: const Icon(Icons.delete,
+                                          color: Colors.red),
                                       title: const Text('Eliminar resultado'),
                                       onTap: () {
                                         Navigator.pop(context);
@@ -181,7 +193,8 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                             );
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8.0, horizontal: 4.0),
                             child: Row(
                               children: [
                                 Image.asset(
@@ -192,31 +205,39 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${partido.equipoRival} (${partido.fecha.day}/${partido.fecha.month})',
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       Text('Cancha: ${partido.cancha}'),
                                       Text('Torneo: ${partido.torneo}'),
                                       if (resultado.observaciones.isNotEmpty)
                                         Padding(
-                                          padding: const EdgeInsets.only(top: 2.0),
+                                          padding:
+                                              const EdgeInsets.only(top: 2.0),
                                           child: Text(
                                             'Obs: ${resultado.observaciones}',
-                                            style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+                                            style: const TextStyle(
+                                                fontStyle: FontStyle.italic,
+                                                fontSize: 12),
                                           ),
                                         ),
                                     ],
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color: resultado.golesFavor > resultado.golesContra
+                                    color: resultado.golesFavor >
+                                            resultado.golesContra
                                         ? Colors.green
-                                        : resultado.golesFavor == resultado.golesContra
+                                        : resultado.golesFavor ==
+                                                resultado.golesContra
                                             ? Colors.orange
                                             : Colors.red,
                                     borderRadius: BorderRadius.circular(8),

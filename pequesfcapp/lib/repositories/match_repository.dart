@@ -32,4 +32,12 @@ class MatchRepository {
       snapshot.docs.map((doc) => MatchModel.fromMap(doc.data())).toList()
     );
   }
+  Stream<List<MatchModel>> partidosPorCategoriaEquipoStream(String categoriaEquipoId) {
+    return _db
+        .collection('partidos')
+        .where('categoriaEquipoId', isEqualTo: categoriaEquipoId)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => MatchModel.fromMap(doc.data())).toList());
+  }
 }

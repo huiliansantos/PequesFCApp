@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class MatchModel {
   final String id;
   final String equipoRival;
@@ -5,8 +7,8 @@ class MatchModel {
   final DateTime fecha;
   final String hora;
   final String torneo;
-  final String categoria;
-  final String equipoId;
+  final String categoriaEquipoId;
+
 
   MatchModel({
     required this.id,
@@ -15,22 +17,23 @@ class MatchModel {
     required this.fecha,
     required this.hora,
     required this.torneo,
-    required this.categoria,
-    required this.equipoId,
+    required this.categoriaEquipoId,
+
   });
 
-  factory MatchModel.fromMap(Map<String, dynamic> map) {
-    return MatchModel(
-      id: map['id'] as String,
-      equipoRival: map['equipoRival'] as String,
-      cancha: map['cancha'] as String,
-      fecha: DateTime.parse(map['fecha'] as String),
-      hora: map['hora'] as String,
-      torneo: map['torneo'] as String,
-      categoria: map['categoria'] as String,
-      equipoId: map['equipoId'] as String,
-    );
-  }
+  factory MatchModel.fromMap(Map<String, dynamic> map) => MatchModel(
+    id: map['id']?.toString() ?? '',
+    equipoRival: map['equipoRival']?.toString() ?? '',
+    cancha: map['cancha']?.toString() ?? '',
+    fecha: map['fecha'] is Timestamp
+        ? (map['fecha'] as Timestamp).toDate()
+        : (map['fecha'] is String
+            ? DateTime.tryParse(map['fecha'] as String) ?? DateTime.now()
+            : DateTime.now()),
+    hora: map['hora']?.toString() ?? '',
+    torneo: map['torneo']?.toString() ?? '',
+    categoriaEquipoId: map['categoriaEquipoId']?.toString() ?? '',
+  );
 
   Map<String, dynamic> toMap() {
     return {
@@ -40,8 +43,7 @@ class MatchModel {
       'fecha': fecha.toIso8601String(),
       'hora': hora,
       'torneo': torneo,
-      'categoria': categoria,
-      'equipoId': equipoId,
+      'categoriaEquipoId': categoriaEquipoId,
     };
   }
 }

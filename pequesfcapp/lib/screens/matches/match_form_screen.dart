@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/match_model.dart';
 import '../../providers/match_provider.dart';
 
 class MatchFormScreen extends ConsumerStatefulWidget {
   final MatchModel? match;
-  
+
   const MatchFormScreen({Key? key, this.match}) : super(key: key);
 
   @override
@@ -20,18 +21,13 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   late TextEditingController horaController;
   DateTime? fecha;
   String? torneo;
-  String? categoria;
-  String? equipoId;
+  String? categoriaEquipoId;
+  String? equipoRivalId;
   TimeOfDay? horaSeleccionada;
+  //generar nombre de categoria a partir del categoriaEquipoId
+  
 
-  // Simulación de datos (reemplaza por tus providers reales)
   final List<String> torneos = ['Apertura', 'Clausura', 'Amistoso'];
-  final List<String> categorias = ['Sub-8', 'Sub-10', 'Sub-12', 'Sub-14', 'Sub-16'];
-  final Map<String, List<String>> equiposPorCategoria = {
-    'Sub-8': ['Peques Sub8 Junior', 'Peques Sub8'],
-    'Sub-10': ['Peques Sub10 Junior', 'Peques Sub10'],
-    // ...agrega más según tus datos...
-  };
 
   @override
   void initState() {
@@ -41,8 +37,8 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
     horaController = TextEditingController(text: widget.match?.hora ?? '');
     fecha = widget.match?.fecha;
     torneo = widget.match?.torneo;
-    categoria = widget.match?.categoria;
-    equipoId = widget.match?.equipoId;
+    categoriaEquipoId = widget.match?.categoriaEquipoId;
+    
     if (widget.match?.hora != null && widget.match!.hora.isNotEmpty) {
       final parts = widget.match!.hora.split(':');
       if (parts.length == 2) {
@@ -91,7 +87,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   }
 
   Future<void> _saveMatch() async {
-    if (!_formKey.currentState!.validate() || fecha == null || torneo == null || categoria == null || equipoId == null) {
+    if (!_formKey.currentState!.validate() || fecha == null || torneo == null || categoriaEquipoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Completa todos los campos')),
       );
@@ -105,8 +101,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
       fecha: fecha!,
       hora: horaController.text,
       torneo: torneo!,
-      categoria: categoria!,
-      equipoId: equipoId!,
+      categoriaEquipoId: categoriaEquipoId!,      
     );
 
     final matchRepo = ref.read(matchRepositoryProvider);
@@ -125,6 +120,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.match == null ? 'Registrar Partido' : 'Modificar Partido'),
+        backgroundColor: const Color(0xFFD32F2F),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -132,6 +128,41 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              // Dropdown de categoría/equipo desde Firestore
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('categoria_equipo').snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const CircularProgressIndicator();
+                  }
+                  final docs = snapshot.data!.docs;
+                  final items = docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final id = (data['id'] ?? doc.id).toString();
+                    final categoria = data['categoria'] ?? '';
+                    final equipo = data['equipo'] ?? '';
+                    return DropdownMenuItem<String>(
+                      value: id,
+                      child: Text('$categoria - $equipo'),
+                    );
+                  }).toList();
+                  return DropdownButtonFormField<String>(
+                    value: categoriaEquipoId,
+                    decoration: const InputDecoration(
+                      labelText: 'Categoría y Equipo',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: items,
+                    onChanged: (value) {
+                      setState(() {
+                        categoriaEquipoId = value;
+                      });
+                    },
+                    validator: (value) => value == null ? 'Seleccione una categoría/equipo' : null,
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: equipoRivalController,
                 decoration: const InputDecoration(labelText: 'Equipo Rival'),
@@ -163,32 +194,14 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                 onChanged: (value) => setState(() => torneo = value),
                 validator: (v) => v == null ? 'Selecciona un torneo' : null,
               ),
-              DropdownButtonFormField<String>(
-                value: categoria,
-                decoration: const InputDecoration(labelText: 'CATEGORIA'),
-                items: categorias.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    categoria = value;
-                    equipoId = null;
-                  });
-                },
-                validator: (v) => v == null ? 'Selecciona una categoría' : null,
-              ),
-              if (categoria != null && equiposPorCategoria[categoria] != null)
-                DropdownButtonFormField<String>(
-                  value: equipoId,
-                  decoration: const InputDecoration(labelText: 'Equipo'),
-                  items: (equiposPorCategoria[categoria] ?? [])
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) => setState(() => equipoId = value),
-                  validator: (v) => v == null ? 'Selecciona un equipo' : null,
-                ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.save),
                 label: Text(widget.match == null ? 'Guardar' : 'Actualizar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD32F2F),
+                  minimumSize: const Size.fromHeight(48),
+                ),
                 onPressed: _saveMatch,
               ),
             ],

@@ -11,6 +11,14 @@ class PlayerRepository {
     await jugadoresCollection.doc(player.id).set(player.toMap());
   }
 
+  // Obtener jugadores por ID de guardián
+  Future<List<PlayerModel>> getPlayersByGuardianId(String guardianId) async {
+    final snapshot = await jugadoresCollection.where('guardianId', isEqualTo: guardianId).get();
+    return snapshot.docs
+        .map((doc) => PlayerModel.fromMap(doc.data() as Map<String, dynamic>))
+        .toList();
+  }
+
   // Obtener todos los jugadores
   Future<List<PlayerModel>> getPlayers() async {
     final snapshot = await jugadoresCollection.get();
@@ -79,4 +87,5 @@ class PlayerRepository {
       Navigator.pushReplacementNamed(context, '/guardians');
     }
   }
+
 }

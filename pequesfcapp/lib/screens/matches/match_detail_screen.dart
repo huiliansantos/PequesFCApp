@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/match_model.dart';
 
 class MatchDetailScreen extends StatelessWidget {
   final MatchModel match;
 
   const MatchDetailScreen({Key? key, required this.match}) : super(key: key);
+
+  Future<String> getCategoriaEquipoNombre(String categoriaEquipoId) async {
+    if (categoriaEquipoId.isEmpty) return '';
+    final doc = await FirebaseFirestore.instance
+        .collection('categoria_equipo')
+        .doc(categoriaEquipoId)
+        .get();
+    if (!doc.exists) return categoriaEquipoId;
+    final data = doc.data()!;
+    return '${data['categoria'] ?? ''} - ${data['equipo'] ?? ''}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,10 +57,16 @@ class MatchDetailScreen extends StatelessWidget {
                   ],
                 ),
                 const Divider(height: 32),
-                ListTile(
-                  leading: const Icon(Icons.category, color: Colors.purple),
-                  title: const Text('Categoría'),
-                  subtitle: Text(match.categoria),
+                FutureBuilder<String>(
+                  future: getCategoriaEquipoNombre(match.categoriaEquipoId),
+                  builder: (context, snapshot) {
+                    final categoriaEquipoNombre = snapshot.data ?? match.categoriaEquipoId;
+                    return ListTile(
+                      leading: const Icon(Icons.category, color: Colors.purple),
+                      title: const Text('Categoría'),
+                      subtitle: Text(categoriaEquipoNombre),
+                    );
+                  },
                 ),
                 ListTile(
                   leading: const Icon(Icons.calendar_today, color: Colors.blue),

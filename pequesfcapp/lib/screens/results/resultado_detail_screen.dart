@@ -31,9 +31,9 @@ class ResultadoDetailScreen extends ConsumerWidget {
               fecha: DateTime.now(),
               cancha: 'Desconocida',
               torneo: 'Desconocido',
-              categoria: 'Desconocida',
+              categoriaEquipoId: 'Desconocida',
               hora: '00:00',
-              equipoId: '',
+             
             ),
           );
           return Padding(
@@ -119,7 +119,7 @@ class ResultadoDetailScreen extends ConsumerWidget {
                     ListTile(
                       leading: const Icon(Icons.category, color: Colors.purple),
                       title: const Text('Categoría'),
-                      subtitle: Text(partido?.categoria ?? 'Desconocida'),
+                      subtitle: Text(partido?.categoriaEquipoId ?? 'Desconocida'),
                     ),
                     if (resultado.observaciones.isNotEmpty)
                       ListTile(

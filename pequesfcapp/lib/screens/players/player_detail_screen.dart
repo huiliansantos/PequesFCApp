@@ -75,18 +75,16 @@ class PlayerDetailScreen extends ConsumerWidget {
                     _buildDetailItem('CI', player.ci, Icons.badge),
                     _buildDetailItem(
                         'Nacionalidad', player.nacionalidad, Icons.flag),
-                    _buildDetailItem('Categoría', calcularCategoria(player.fechaDeNacimiento), Icons.sports_soccer),
-                    //mostrar el nombre del equipo que corresponde a ese ID
                     categoriaEquipoAsync.when(
-                      loading: () => _buildDetailItem('Equipo', 'Cargando...', Icons.sports_soccer),
-                      error: (e, _) => _buildDetailItem('Equipo', 'Error', Icons.sports_soccer),
+                      loading: () => _buildDetailItem('Categoria - Equipo', 'Cargando...', Icons.sports_soccer),
+                      error: (e, _) => _buildDetailItem('Categoria - Equipo', 'Error', Icons.sports_soccer),
                       data: (lista) {
                         final categoriaEquipo = lista.firstWhere(
                           (item) => item.id == player.categoriaEquipoId,
                           orElse: () => CategoriaEquipoModel(id: '', categoria: 'Sin asignar', equipo: ''),
                         );
                         return _buildDetailItem(
-                          'Equipo',
+                          'Cat - Equipo',
                           '${categoriaEquipo.categoria} - ${categoriaEquipo.equipo}',
                           Icons.sports_soccer,
                         );

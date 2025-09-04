@@ -10,10 +10,6 @@ import 'player_detail_screen.dart';
 String calcularCategoria(DateTime fechaNacimiento) {
   final ahora = DateTime.now();
   int edad = ahora.year - fechaNacimiento.year;
-  if (ahora.month < fechaNacimiento.month ||
-      (ahora.month == fechaNacimiento.month && ahora.day < fechaNacimiento.day)) {
-    edad--;
-  }
   return 'Sub-$edad';
 }
 

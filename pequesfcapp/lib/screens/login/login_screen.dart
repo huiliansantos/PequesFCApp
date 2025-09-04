@@ -4,10 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants.dart';
 import '../../providers/auth.provider.dart';
 import '../../providers/user_role_provider.dart';
+import '../../providers/player_provider.dart';
 import '../../providers/guardian_provider.dart';
 import '../../models/guardian_model.dart';
+import '../../models/player_model.dart';
 import '../../repositories/guardian_repository.dart';
-import '../guardians/guardian_dashboard_screen.dart';
+import '../../repositories/player_repository.dart';
+import '../home/apoderado_home_screen.dart';
 import '../home/home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -122,9 +125,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     final guardianRepo = ref.read(guardianRepositoryProvider);
                                     final guardian = await guardianRepo.getGuardianByEmail(email);
                                     if (guardian != null) {
+                                      // Obtener los hijos del apoderado
+                                      final playerRepo = ref.read(playerRepositoryProvider);
+                                      final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
                                       Navigator.pushReplacement(
                                         context,
-                                        MaterialPageRoute(builder: (_) => GuardianDashboardScreen(guardian: guardian)),
+                                        MaterialPageRoute(
+                                          builder: (_) => ApoderadoHomeScreen(
+                                            guardian: guardian,
+                                            hijos: hijos,
+                                          ),
+                                        ),
                                       );
                                       return;
                                     } else {
@@ -140,11 +151,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   final guardianRepo = ref.read(guardianRepositoryProvider);
                                   final guardian = await guardianRepo.autenticarGuardian(email, password);
                                   if (guardian != null) {
-                                    // Aquí puedes guardar el guardian autenticado en un provider de estado global si lo necesitas
+                                    final playerRepo = ref.read(playerRepositoryProvider);
+                                    final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
                                     if (mounted) {
                                       Navigator.pushReplacement(
                                         context,
-                                        MaterialPageRoute(builder: (_) => GuardianDashboardScreen(guardian: guardian)),
+                                        MaterialPageRoute(
+                                          builder: (_) => ApoderadoHomeScreen(
+                                            guardian: guardian,
+                                            hijos: hijos,
+                                          ),
+                                        ),
                                       );
                                     }
                                   } else {

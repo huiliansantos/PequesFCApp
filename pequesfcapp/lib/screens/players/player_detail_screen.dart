@@ -183,6 +183,7 @@ class PlayerDetailScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 10),
+            
             ElevatedButton.icon(
               icon: const Icon(Icons.person_add),
               style: ElevatedButton.styleFrom(

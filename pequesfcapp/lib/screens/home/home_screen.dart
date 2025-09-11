@@ -203,54 +203,98 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFD32F2F),
-                    Color(0xFFF57C00),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      drawer: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.75,
+        child: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFD32F2F),
+                      Color(0xFFF57C00),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: DrawerHeader(
+                  padding: EdgeInsets.zero,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Escudo de la escuela
+                        Image.asset(
+                          'assets/peques.png',
+                          width: 70,
+                          height: 70,
+                        ),
+                        const SizedBox(height: 12),
+                        // Nombre completo
+                        Text(
+                          '${widget.nombre ?? 'Usuario'} ${widget.apellido ?? ''}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        // Rol
+                        Text(
+                          widget.role == 'admin' ? 'Administrador' : widget.role,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              accountName: Text(
-                '${widget.nombre ?? 'Usuario'} ${widget.apellido ?? ''}',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              accountEmail: Text(
-                widget.role == 'admin' ? 'Administrador' : widget.role,
-                style: const TextStyle(fontSize: 14),
-              ),
-              currentAccountPicture: const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: Color(0xFFD32F2F), size: 36),
-              ),
-            ),
-            ..._buildDrawerOptions(context),
-          ],
+              ..._buildDrawerOptions(context),
+            ],
+          ),
         ),
       ),
       body: screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: _navItems,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          gradient:  LinearGradient(
+            colors: [
+              Color(0xFFD32F2F),
+              Color(0xFFF57C00),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),      
+    
+        child: BottomNavigationBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         currentIndex: bottomNavIndex,
         onTap: (navIndex) {
           setState(() {
             _selectedIndex = _bottomNavToScreenIndex[navIndex];
           });
         },
-        selectedItemColor: const Color(0xFFD32F2F),
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white70,
         type: BottomNavigationBarType.fixed,
+        items: _navItems,
+      ),
       ),
       floatingActionButton: widget.role == 'admin'
           ? FloatingActionButton(
+              backgroundColor: const Color(0xFFF57C00),
+              foregroundColor: Colors.white,
               onPressed: () {
                 showModalBottomSheet(
                   context: context,

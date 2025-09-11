@@ -22,36 +22,7 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
     return Scaffold(
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.family_restroom, color: Color(0xFFD32F2F), size: 28),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Lista de Apoderados',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFD32F2F),
-                      letterSpacing: 1.2,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black12,
-                          offset: Offset(1, 2),
-                          blurRadius: 2,
-                        ),
-                      ],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
+        Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
               decoration: InputDecoration(

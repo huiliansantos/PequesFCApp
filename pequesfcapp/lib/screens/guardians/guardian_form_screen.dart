@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../models/guardian_model.dart';
 import '../../models/player_model.dart';
 import '../../providers/player_provider.dart';
+import '../../widgets/gradient_button.dart';
 import '../../providers/guardian_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -226,13 +227,9 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _saveGuardian,
+              GradientButton(
+                 onPressed: _saveGuardian,
                 child: Text(widget.guardian == null ? 'Registrar Apoderado' : 'Actualizar Apoderado'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD32F2F),
-                  minimumSize: const Size.fromHeight(48),
-                ),
               ),
             ],
           ),

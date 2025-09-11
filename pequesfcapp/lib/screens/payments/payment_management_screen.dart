@@ -8,17 +8,23 @@ import 'payment_form.dart';
 import 'payment_history_screen.dart';
 
 const List<String> mesesPendientesPorDefecto = [
-  'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre'
 ];
 
 class PaymentManagementScreen extends ConsumerStatefulWidget {
   const PaymentManagementScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<PaymentManagementScreen> createState() => _PaymentManagementScreenState();
+  ConsumerState<PaymentManagementScreen> createState() =>
+      _PaymentManagementScreenState();
 }
 
-class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScreen> {
+class _PaymentManagementScreenState
+    extends ConsumerState<PaymentManagementScreen> {
   String busqueda = '';
   String? categoriaSeleccionada;
   String estadoSeleccionado = 'todos';
@@ -28,10 +34,6 @@ class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScree
     final jugadoresAsync = ref.watch(playersProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de Pagos'),
-        backgroundColor: const Color(0xFFD32F2F),
-      ),
       body: Column(
         children: [
           Padding(
@@ -74,8 +76,10 @@ class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScree
                   items: const [
                     DropdownMenuItem(value: 'todos', child: Text('Todos')),
                     DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
-                    DropdownMenuItem(value: 'pendiente', child: Text('Pendientes')),
-                    DropdownMenuItem(value: 'atrasado', child: Text('Atrasados')),
+                    DropdownMenuItem(
+                        value: 'pendiente', child: Text('Pendientes')),
+                    DropdownMenuItem(
+                        value: 'atrasado', child: Text('Atrasados')),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -92,46 +96,55 @@ class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScree
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (jugadores) {
                 final jugadoresFiltrados = jugadores.where((j) {
-                  final coincideBusqueda = j.nombres.toLowerCase().contains(busqueda) ||
-                      j.apellido.toLowerCase().contains(busqueda);
+                  final coincideBusqueda =
+                      j.nombres.toLowerCase().contains(busqueda) ||
+                          j.apellido.toLowerCase().contains(busqueda);
                   final coincideCategoria = categoriaSeleccionada == null ||
                       j.categoriaEquipoId == categoriaSeleccionada;
                   return coincideBusqueda && coincideCategoria;
                 }).toList();
 
                 if (jugadoresFiltrados.isEmpty) {
-                  return const Center(child: Text('No hay jugadores encontrados.'));
+                  return const Center(
+                      child: Text('No hay jugadores encontrados.'));
                 }
 
                 return ListView.builder(
                   itemCount: jugadoresFiltrados.length,
                   itemBuilder: (context, index) {
                     final jugador = jugadoresFiltrados[index];
-                    final pagosAsync = ref.watch(pagosPorJugadorProvider(jugador.id));
+                    final pagosAsync =
+                        ref.watch(pagosPorJugadorProvider(jugador.id));
                     return pagosAsync.when(
-                      loading: () => const ListTile(title: Text('Cargando pagos...')),
+                      loading: () =>
+                          const ListTile(title: Text('Cargando pagos...')),
                       error: (e, _) => ListTile(title: Text('Error: $e')),
                       data: (pagos) {
                         // Filtra pagos por estado si corresponde
                         final pagosFiltrados = estadoSeleccionado == 'todos'
                             ? pagos
-                            : pagos.where((p) => p.estado == estadoSeleccionado).toList();
+                            : pagos
+                                .where((p) => p.estado == estadoSeleccionado)
+                                .toList();
 
                         // Verifica si hay algún mes pendiente
                         final pagosPorMes = {for (var p in pagos) p.mes: p};
-                        bool tienePendiente = mesesPendientesPorDefecto.any((mes) =>
-                          !pagosPorMes.containsKey(mes) || (pagosPorMes[mes]?.estado != 'pagado')
-                        );
+                        bool tienePendiente = mesesPendientesPorDefecto.any(
+                            (mes) =>
+                                !pagosPorMes.containsKey(mes) ||
+                                (pagosPorMes[mes]?.estado != 'pagado'));
 
                         Color estadoColor;
                         String estadoTexto;
                         if (tienePendiente) {
                           estadoColor = Colors.orange;
                           estadoTexto = 'Pendiente';
-                        } else if (pagosFiltrados.isNotEmpty && pagosFiltrados.last.estado == 'pagado') {
+                        } else if (pagosFiltrados.isNotEmpty &&
+                            pagosFiltrados.last.estado == 'pagado') {
                           estadoColor = Colors.green;
                           estadoTexto = 'Pagado';
-                        } else if (pagosFiltrados.isNotEmpty && pagosFiltrados.last.estado == 'atrasado') {
+                        } else if (pagosFiltrados.isNotEmpty &&
+                            pagosFiltrados.last.estado == 'atrasado') {
                           estadoColor = Colors.red;
                           estadoTexto = 'Atrasado';
                         } else {
@@ -140,16 +153,21 @@ class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScree
                         }
 
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: estadoColor,
-                              child: const Icon(Icons.person, color: Colors.white),
+                              child:
+                                  const Icon(Icons.person, color: Colors.white),
                             ),
-                            title: Text('${jugador.nombres} ${jugador.apellido}'),
-                            subtitle: Text('Categoría: ${jugador.categoriaEquipoId}'),
+                            title:
+                                Text('${jugador.nombres} ${jugador.apellido}'),
+                            subtitle:
+                                Text('Categoría: ${jugador.categoriaEquipoId}'),
                             trailing: Chip(
-                              label: Text(estadoTexto, style: const TextStyle(color: Colors.white)),
+                              label: Text(estadoTexto,
+                                  style: const TextStyle(color: Colors.white)),
                               backgroundColor: estadoColor,
                             ),
                             onTap: () {
@@ -158,7 +176,8 @@ class _PaymentManagementScreenState extends ConsumerState<PaymentManagementScree
                                 MaterialPageRoute(
                                   builder: (_) => PaymentHistoryScreen(
                                     jugadorId: jugador.id,
-                                    jugadorNombre: '${jugador.nombres} ${jugador.apellido}',
+                                    jugadorNombre:
+                                        '${jugador.nombres} ${jugador.apellido}',
                                   ),
                                 ),
                               );

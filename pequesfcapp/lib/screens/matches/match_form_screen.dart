@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/match_model.dart';
+import '../../widgets/gradient_button.dart';
 import '../../providers/match_provider.dart';
 
 class MatchFormScreen extends ConsumerStatefulWidget {
@@ -195,15 +196,11 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                 validator: (v) => v == null ? 'Selecciona un torneo' : null,
               ),
               const SizedBox(height: 20),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.save),
-                label: Text(widget.match == null ? 'Guardar' : 'Actualizar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD32F2F),
-                  minimumSize: const Size.fromHeight(48),
-                ),
+              GradientButton(
                 onPressed: _saveMatch,
+                child: Text(widget.match == null ? 'Guardar' : 'Actualizar'),
               ),
+            
             ],
           ),
         ),

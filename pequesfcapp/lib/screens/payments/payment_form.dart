@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/pago_model.dart';
 import '../../providers/pago_provider.dart';
+import '../../widgets/gradient_button.dart';
 
 const List<String> mesesDelAno = [
   'Enero',
@@ -155,15 +156,11 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
                 maxLines: 2,
               ),
               const SizedBox(height: 24),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar pago'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD32F2F),
-                  minimumSize: const Size.fromHeight(48),
-                ),
+              GradientButton(
                 onPressed: _guardarPago,
+                child: const Text('Guardar pago'),
               ),
+            
             ],
           ),
         ),

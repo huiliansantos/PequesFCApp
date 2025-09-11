@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../models/player_model.dart';
+import '../../widgets/gradient_button.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
 
@@ -264,24 +265,31 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
               categoriasEquiposAsync.when(
                 loading: () => const CircularProgressIndicator(),
                 error: (e, _) => Text('Error: $e'),
-                data: (lista) => DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Categoría-Equipo'),
-                  value: lista.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
-                  items: lista.map((item) =>
-                    DropdownMenuItem(
-                      value: item.id,
-                      child: Text('${item.categoria} - ${item.equipo}'),
-                    )
-                  ).toList(),
-                  onChanged: (value) => setState(() => categoriaEquipoId = value),
-                  validator: (v) => v == null ? 'Selecciona una categoría-equipo' : null,
-                ),
+                data: (lista) {
+                  if (lista.isEmpty) {
+                    return const Text('No hay categorías-equipo registradas');
+                  }
+                  return DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Categoría-Equipo'),
+                    value: lista.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
+                    items: lista.map((item) =>
+                      DropdownMenuItem(
+                        value: item.id,
+                        child: Text('${item.categoria} - ${item.equipo}'),
+                      )
+                    ).toList(),
+                    onChanged: (value) => setState(() => categoriaEquipoId = value),
+                    validator: (v) => v == null ? 'Selecciona una categoría-equipo' : null,
+                  );
+                },
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
+              GradientButton(
                 onPressed: _savePlayer,
+                // Cambia el texto del botón según si es creación o edición
                 child: Text(widget.player == null ? 'Crear' : 'Actualizar'),
-              )
+              ),
+            
             ],
           ),
         ),

@@ -26,37 +26,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
     return Scaffold(
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.sports_soccer,
-                    color: Color(0xFFD32F2F), size: 28),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Resultados de Partidos',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFD32F2F),
-                      letterSpacing: 1.2,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black12,
-                          offset: Offset(1, 2),
-                          blurRadius: 2,
-                        ),
-                      ],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          partidosAsync.when(
+        partidosAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (partidos) {

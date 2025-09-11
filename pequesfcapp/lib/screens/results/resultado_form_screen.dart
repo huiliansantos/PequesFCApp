@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/resultado_model.dart';
+import '../../widgets/gradient_button.dart';
 import '../../models/match_model.dart';
 import '../../providers/match_provider.dart';
 import '../../providers/resultado_provider.dart';
@@ -173,11 +174,11 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.save),
-                      label: Text(widget.resultado == null ? 'Guardar Resultado' : 'Actualizar Resultado'),
+                    GradientButton(
                       onPressed: _saveResultado,
+                      child: Text(widget.resultado == null ? 'Guardar Resultado' : 'Actualizar Resultado'),
                     ),
+                   
                   ],
                 );
               },

@@ -87,5 +87,4 @@ class PlayerRepository {
       Navigator.pushReplacementNamed(context, '/guardians');
     }
   }
-
 }

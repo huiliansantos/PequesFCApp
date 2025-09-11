@@ -56,36 +56,7 @@ class _PlayerListScreenState extends ConsumerState<PlayerListScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.people, color: Color(0xFFD32F2F), size: 28),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Lista de Jugadores',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFD32F2F),
-                            letterSpacing: 1.2,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black12,
-                                offset: Offset(1, 2),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
+              Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Row(
                     children: [

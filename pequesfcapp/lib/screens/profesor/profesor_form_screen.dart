@@ -23,6 +23,7 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
   final celularController = TextEditingController();
   DateTime? fechaNacimiento;
   String? categoriaEquipoId;
+  String rol = 'profesor';
 
   String generarUsuario(String nombre, String apellido) {
     final inicial = nombre.trim().isNotEmpty ? nombre.trim()[0].toLowerCase() : '';
@@ -42,6 +43,7 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
       celularController.text = widget.profesor!.celular;
       fechaNacimiento = widget.profesor!.fechaNacimiento;
       categoriaEquipoId = widget.profesor!.categoriaEquipoId;
+      rol = widget.profesor!.rol;
     }
   }
 
@@ -156,6 +158,7 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                       usuario: usuario,
                       contrasena: contrasena,
                       categoriaEquipoId: categoriaEquipoId!,
+                      rol: 'profesor',
                     );
                     final repo = ref.read(profesorRepositoryProvider);
                     if (isEdit) {

@@ -65,11 +65,12 @@ class GuardianRepository {
         .collection('guardianes')
         .where('usuario', isEqualTo: usuario)
         .where('contrasena', isEqualTo: contrasena)
-        .where('rol', isEqualTo: 'apoderado')
+        .limit(1)
         .get();
-
-    if (query.docs.isEmpty) return null;
-    return GuardianModel.fromMap(query.docs.first.data());
+    if (query.docs.isNotEmpty) {
+      return GuardianModel.fromMap(query.docs.first.data());
+    }
+    return null;
   }
 
   // Stream de un guardian por ID (actualización en tiempo real)

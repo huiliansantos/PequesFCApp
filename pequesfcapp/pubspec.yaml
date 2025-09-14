@@ -38,6 +38,7 @@ flutter:
   assets:
     - assets/jugador.png
     - assets/peques.png
+    - assets/rival.png
 
 flutter_icons:
   android: true

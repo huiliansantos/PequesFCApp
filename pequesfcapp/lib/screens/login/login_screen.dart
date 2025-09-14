@@ -6,12 +6,14 @@ import '../../providers/auth.provider.dart';
 import '../../providers/user_role_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/guardian_provider.dart';
+import '../../providers/profesor_provider.dart';
 import '../../models/guardian_model.dart';
 import '../../models/player_model.dart';
 import '../../repositories/guardian_repository.dart';
 import '../../repositories/player_repository.dart';
 import '../home/apoderado_home_screen.dart';
 import '../home/home_screen.dart';
+import '../home/profesor_home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -73,8 +75,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         labelText: 'Usuario o correo',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (v) => email = v,
-                      validator: (v) => v != null && v.isNotEmpty ? null : 'Ingrese su usuario o correo',
+                      onChanged: (v) => email = v.trim(),
+                      validator: (v) => v != null && v.isNotEmpty
+                          ? null
+                          : 'Ingrese su usuario o correo',
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -84,7 +88,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                           ),
                           onPressed: () {
                             setState(() {
@@ -93,8 +99,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           },
                         ),
                       ),
-                      onChanged: (v) => password = v,
-                      validator: (v) => v != null && v.length >= 6 ? null : 'Mínimo 6 caracteres',
+                      onChanged: (v) => password = v.trim(),
+                      validator: (v) => v != null && v.length >= 6
+                          ? null
+                          : 'Mínimo 6 caracteres',
                     ),
                     if (error != null) ...[
                       const SizedBox(height: 12),
@@ -109,70 +117,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: () async {
                             if (_formKey.currentState!.validate()) {
                               setState(() => error = null);
+
+                              // 1. Intenta login personalizado de profesor
+                              final profesorRepo = ref.read(profesorRepositoryProvider);
+                              final profesor = await profesorRepo.autenticarProfesor(email, password);
+                              if (profesor != null) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProfesorHomeScreen(profesor: profesor),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // 2. Intenta login personalizado de apoderado
+                              final guardianRepo = ref.read(guardianRepositoryProvider);
+                              final guardian = await guardianRepo.autenticarGuardian(email, password);
+                              if (guardian != null) {
+                                final playerRepo = ref.read(playerRepositoryProvider);
+                                final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ApoderadoHomeScreen(
+                                      guardian: guardian,
+                                      hijos: hijos,
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // 3. Intenta login con Firebase Auth (admin)
                               try {
-                                // 1. Intenta login con Firebase Auth
-                                await ref.read(authRepositoryProvider).signInWithEmail(email, password);
-                                final rol = await ref.read(userRoleProvider.future);
+                                await ref
+                                    .read(authRepositoryProvider)
+                                    .signInWithEmail(email, password);
+                                final rol =
+                                    await ref.read(userRoleProvider.future);
+                                print('ROL DETECTADO: $rol');
                                 if (mounted) {
                                   if (rol == 'admin') {
                                     Navigator.pushReplacement(
                                       context,
-                                      MaterialPageRoute(builder: (_) => const HomeScreen(role: 'admin')),
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const HomeScreen(role: 'admin')),
                                     );
                                     return;
-                                  } else if (rol == 'apoderado') {
-                                    // Buscar el modelo del apoderado por email (usuario)
-                                    final guardianRepo = ref.read(guardianRepositoryProvider);
-                                    final guardian = await guardianRepo.getGuardianByEmail(email);
-                                    if (guardian != null) {
-                                      // Obtener los hijos del apoderado
-                                      final playerRepo = ref.read(playerRepositoryProvider);
-                                      final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ApoderadoHomeScreen(
-                                            guardian: guardian,
-                                            hijos: hijos,
-                                          ),
-                                        ),
-                                      );
-                                      return;
-                                    } else {
-                                      setState(() => error = 'No se encontró el apoderado.');
-                                      return;
-                                    }
                                   }
                                   setState(() => error = 'Rol desconocido');
                                 }
                               } catch (e) {
-                                // 2. Si falla, intenta login personalizado de apoderado
-                                try {
-                                  final guardianRepo = ref.read(guardianRepositoryProvider);
-                                  final guardian = await guardianRepo.autenticarGuardian(email, password);
-                                  if (guardian != null) {
-                                    final playerRepo = ref.read(playerRepositoryProvider);
-                                    final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
-                                    if (mounted) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ApoderadoHomeScreen(
-                                            guardian: guardian,
-                                            hijos: hijos,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  } else {
-                                    if (mounted) {
-                                      setState(() => error = 'Usuario o contraseña incorrectos');
-                                    }
-                                  }
-                                } catch (e) {
-                                  if (mounted) {
-                                    setState(() => error = 'Usuario o contraseña incorrectos');
-                                  }
+                                if (mounted) {
+                                  setState(() => error = 'Usuario o contraseña incorrectos');
                                 }
                               }
                             }

@@ -24,7 +24,7 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
         .get();
     if (!doc.exists) return categoriaEquipoId;
     final data = doc.data()!;
-    return '${data['categoria'] ?? ''} - ${data['equipo'] ?? ''}';
+    return '${data['categoria'] ?? ''}-${data['equipo'] ??''}';
   }
 
   @override
@@ -44,7 +44,7 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-             Padding(
+            Padding(
               padding: const EdgeInsets.all(8.0),
               child: DropdownButton<String>(
                 value: categorias.contains(categoriaSeleccionada) ? categoriaSeleccionada : null,
@@ -73,7 +73,10 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                           builder: (context, snapshot) {
                             final categoriaEquipoNombre = snapshot.data ?? partido.categoriaEquipoId;
                             return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 3,
+                              color: Colors.white,
                               child: InkWell(
                                 onTap: () {
                                   Navigator.push(
@@ -139,34 +142,100 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                     ),
                                   );
                                 },
-                                child: ListTile(
-                                  leading: Image.asset(
-                                    'assets/peques.png',
-                                    width: 50,
-                                    height: 50,
-                                  ),
-                                  title: Text(
-                                    partido.equipoRival,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Column(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        categoriaEquipoNombre,
-                                        style: const TextStyle(color: Colors.black87),
+                                      if (partido.torneo != null && partido.torneo!.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 2.0),
+                                          child: Text(
+                                            'Torneo: ${partido.torneo!}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFFD32F2F),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        //poner un divider profesional
+                                        const Divider(
+                                          color: Colors.black12,
+                                          thickness: 1,
+                                        ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              categoriaEquipoNombre,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                          Image.asset(
+                                            'assets/peques.png',
+                                            width: 40,
+                                            height: 40,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            partido.hora,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFFF57C00),
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                             Image.asset(
+                                            'assets/rival.png',
+                                            width: 40,
+                                            height: 40,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              partido.equipoRival,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                                fontSize: 10,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year}  Hora: ${partido.hora}',
-                                        style: const TextStyle(color: Colors.black54),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 14),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              partido.cancha,
+                                              style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        'Lugar: ${partido.cancha}',
-                                        style: const TextStyle(color: Colors.black54),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today, color: Color(0xFFD32F2F), size: 14),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year}',
+                                            style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                  isThreeLine: true,
                                 ),
                               ),
                             );

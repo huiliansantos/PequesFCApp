@@ -10,6 +10,7 @@ class ProfesorModel {
   final String usuario;
   final String contrasena;
   final String categoriaEquipoId;
+  final String rol;
 
   ProfesorModel({
     required this.id,
@@ -21,6 +22,7 @@ class ProfesorModel {
     required this.usuario,
     required this.contrasena,
     required this.categoriaEquipoId,
+    this.rol = 'profesor',
   });
 
   Map<String, dynamic> toMap() => {
@@ -33,6 +35,7 @@ class ProfesorModel {
     'usuario': usuario,
     'contrasena': contrasena,
     'categoriaEquipoId': categoriaEquipoId,
+    'rol': rol,
   };
   factory ProfesorModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -48,9 +51,10 @@ class ProfesorModel {
       usuario: data['usuario'] ?? '',
       contrasena: data['contrasena'] ?? '',
       categoriaEquipoId: data['categoriaEquipoId'] ?? '',
+      rol: data['rol'] ?? 'profesor',
     );
   }
-
+  
   factory ProfesorModel.fromMap(Map<String, dynamic> map) => ProfesorModel(
     id: map['id'] ?? '',
     nombre: map['nombre'] ?? '',
@@ -63,6 +67,7 @@ class ProfesorModel {
     usuario: map['usuario'] ?? '',
     contrasena: map['contrasena'] ?? '',
     categoriaEquipoId: map['categoriaEquipoId'] ?? '',
+    rol: map['rol'] ?? 'profesor',
   );
   
 }

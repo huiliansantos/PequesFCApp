@@ -30,8 +30,26 @@ class PaymentDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalle de Pago'),
-        backgroundColor: const Color(0xFFD32F2F),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Detalles de pago'),
+            //nombre del
+            Text(
+              '',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

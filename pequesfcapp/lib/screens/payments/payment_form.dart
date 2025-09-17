@@ -62,8 +62,25 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Registrar pago a ${widget.jugadorNombre}'),
-        backgroundColor: const Color(0xFFD32F2F),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Registrar pago de:'),
+            Text(
+              '${widget.jugadorNombre}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -75,7 +92,7 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
                 controller: _montoController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Monto (S/)',
+                  labelText: 'Monto (Bs/)',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {

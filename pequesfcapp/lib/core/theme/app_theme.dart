@@ -19,7 +19,7 @@ class AppTheme {
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(0xFFFF5722),   // Naranja fuego
         ),
-        cardTheme: const CardTheme(
+        cardTheme: const CardThemeData(
           color: Colors.white,
           elevation: 4,
           margin: EdgeInsets.all(8),

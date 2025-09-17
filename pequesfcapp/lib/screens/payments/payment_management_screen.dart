@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/pago_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../models/pago_model.dart';
 import '../../models/player_model.dart';
 import 'payment_form.dart';
 import 'payment_history_screen.dart';
+import '../../providers/categoria_equipo_provider.dart';
+import '../../models/categoria_equipo_model.dart';
 
 const List<String> mesesPendientesPorDefecto = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
   'Agosto',
   'Septiembre',
   'Octubre',
@@ -38,54 +48,77 @@ class _PaymentManagementScreenState
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar jugador',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        busqueda = value.trim().toLowerCase();
-                      });
-                    },
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar jugador',
+                    border: OutlineInputBorder(),
+                    isDense: true,
                   ),
+                  onChanged: (value) {
+                    setState(() {
+                      busqueda = value.trim().toLowerCase();
+                    });
+                  },
                 ),
                 const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: categoriaSeleccionada,
-                  hint: const Text('Categoría'),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Todas')),
-                    ...['2016', '2017', '2018', '2019', '2020'].map(
-                      (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButton<String>(
+                        value: categoriaSeleccionada,
+                        hint: const Text('Categoría'),
+                        isExpanded: true,
+                        items: [
+                          const DropdownMenuItem(
+                              value: null, child: Text('Todas las categorías')),
+                          ...ref
+                              .watch(categoriasEquiposProvider)
+                              .maybeWhen(
+                                data: (categorias) {
+                                  final ordenadas = [...categorias]
+                                    ..sort((a, b) {
+                                      final catComp = a.categoria.compareTo(b.categoria);
+                                      if (catComp != 0) return catComp;
+                                      return a.equipo.compareTo(b.equipo);
+                                    });
+                                  return ordenadas
+                                      .map((ce) => DropdownMenuItem(
+                                            value: ce.id,
+                                            child: Text('${ce.categoria} - ${ce.equipo}'),
+                                          ))
+                                      .toList();
+                                },
+                                orElse: () => <DropdownMenuItem<String>>[],
+                              )
+                              .toList(),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            categoriaSeleccionada = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    DropdownButton<String>(
+                      value: estadoSeleccionado,
+                      items: const [
+                        DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                        DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
+                        DropdownMenuItem(
+                            value: 'pendiente', child: Text('Pendientes')),
+                        DropdownMenuItem(
+                            value: 'atrasado', child: Text('Atrasados')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          estadoSeleccionado = value ?? 'todos';
+                        });
+                      },
                     ),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      categoriaSeleccionada = value;
-                    });
-                  },
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: estadoSeleccionado,
-                  items: const [
-                    DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                    DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
-                    DropdownMenuItem(
-                        value: 'pendiente', child: Text('Pendientes')),
-                    DropdownMenuItem(
-                        value: 'atrasado', child: Text('Atrasados')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      estadoSeleccionado = value ?? 'todos';
-                    });
-                  },
                 ),
               ],
             ),
@@ -123,33 +156,41 @@ class _PaymentManagementScreenState
                         // Filtra pagos por estado si corresponde
                         final pagosFiltrados = estadoSeleccionado == 'todos'
                             ? pagos
-                            : pagos
-                                .where((p) => p.estado == estadoSeleccionado)
-                                .toList();
+                            : pagos.where((p) => p.estado == estadoSeleccionado).toList();
 
-                        // Verifica si hay algún mes pendiente
-                        final pagosPorMes = {for (var p in pagos) p.mes: p};
-                        bool tienePendiente = mesesPendientesPorDefecto.any(
-                            (mes) =>
-                                !pagosPorMes.containsKey(mes) ||
-                                (pagosPorMes[mes]?.estado != 'pagado'));
+                        // Obtén el índice del último mes pagado
+                        int ultimoMesPagado = -1;
+                        for (var pago in pagos) {
+                          if (pago.estado == 'pagado') {
+                            int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
+                            if (mesIndex > ultimoMesPagado) {
+                              ultimoMesPagado = mesIndex;
+                            }
+                          }
+                        }
 
+                        // Mes actual (0 = Enero, 1 = Febrero, ...)
+                        int mesActual = DateTime.now().month - 1; // Si tu lista inicia en Enero
+
+                        // Calcula cuántos meses debe hasta el mes actual
+                        int mesesDeuda = mesActual - ultimoMesPagado;
+
+                        // Estado general y color
                         Color estadoColor;
                         String estadoTexto;
-                        if (tienePendiente) {
-                          estadoColor = Colors.orange;
-                          estadoTexto = 'Pendiente';
-                        } else if (pagosFiltrados.isNotEmpty &&
-                            pagosFiltrados.last.estado == 'pagado') {
+
+                        if (pagos.isEmpty) {
+                          estadoColor = Colors.grey;
+                          estadoTexto = 'Sin registro';
+                        } else if (ultimoMesPagado >= mesActual) {
                           estadoColor = Colors.green;
                           estadoTexto = 'Pagado';
-                        } else if (pagosFiltrados.isNotEmpty &&
-                            pagosFiltrados.last.estado == 'atrasado') {
+                        } else if (mesesDeuda > 3) {
                           estadoColor = Colors.red;
                           estadoTexto = 'Atrasado';
                         } else {
-                          estadoColor = Colors.grey;
-                          estadoTexto = 'Sin registro';
+                          estadoColor = Colors.orange;
+                          estadoTexto = 'Pendiente';
                         }
 
                         return Card(
@@ -163,8 +204,25 @@ class _PaymentManagementScreenState
                             ),
                             title:
                                 Text('${jugador.nombres} ${jugador.apellido}'),
-                            subtitle:
-                                Text('Categoría: ${jugador.categoriaEquipoId}'),
+                            subtitle: FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('categoria_equipo')
+                                  .doc(jugador.categoriaEquipoId)
+                                  .get(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Text('Cargando categoría...');
+                                }
+                                if (!snapshot.hasData || !snapshot.data!.exists) {
+                                  return const Text('Categoría desconocida');
+                                }
+                                final data = snapshot.data!.data()
+                                    as Map<String, dynamic>;
+                                return Text(
+                                    'Categoría: ${data['categoria']} - ${data['equipo']}');
+                              },
+                            ),
                             trailing: Chip(
                               label: Text(estadoTexto,
                                   style: const TextStyle(color: Colors.white)),

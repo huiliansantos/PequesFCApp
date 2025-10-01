@@ -21,3 +21,26 @@ final partidosPorCategoriaEquipoProvider = StreamProvider.family<List<MatchModel
     .snapshots()
     .map((snapshot) => snapshot.docs.map((doc) => MatchModel.fromMap(doc.data() as Map<String, dynamic>)).toList());
 });
+
+final partidosProviderAll = StreamProvider<List<MatchModel>>((ref) {
+  return FirebaseFirestore.instance
+      .collection('partidos')
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => MatchModel.fromMap(doc.data() as Map<String, dynamic>))
+          .toList());
+});
+
+final partidosPorCategoriasProvider = StreamProvider.family<List<MatchModel>, List<String>>((ref, categoriasIds) {
+  if (categoriasIds.isEmpty) {
+    // Firestore no permite whereIn con lista vacía, así que devolvemos vacío
+    return const Stream<List<MatchModel>>.empty();
+  }
+  return FirebaseFirestore.instance
+      .collection('partidos')
+      .where('categoriaEquipoId', whereIn: categoriasIds)
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => MatchModel.fromMap(doc.data() as Map<String, dynamic>))
+          .toList());
+});

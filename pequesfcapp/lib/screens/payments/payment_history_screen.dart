@@ -292,7 +292,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                           backgroundColor: Colors.orange,
                           child: Icon(Icons.attach_money, color: Colors.white),
                         ),
-                        title: Text('$mes - S/ 0.00'),
+                        title: Text('$mes - Bs. 0.00'),
                         subtitle: const Text('Pendiente de pago'),
                         trailing: const Chip(
                           label: Text('PENDIENTE',

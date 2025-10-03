@@ -6,7 +6,8 @@ class PagoModel {
   final DateTime fechaPago;
   final double monto;
   final String mes;
-  final String estado; // 'pagado', 'pendiente', 'atrasado'
+  final int anio;
+  final String estado;
   final String? observacion;
 
   PagoModel({
@@ -15,6 +16,7 @@ class PagoModel {
     required this.fechaPago,
     required this.monto,
     required this.mes,
+    required this.anio,
     required this.estado,
     this.observacion,
   });
@@ -25,6 +27,7 @@ class PagoModel {
     fechaPago: (map['fechaPago'] as Timestamp).toDate(),
     monto: (map['monto'] as num).toDouble(),
     mes: map['mes'] ?? '',
+    anio: map['anio'] ?? 0,
     estado: map['estado'] ?? 'pendiente',
     observacion: map['observacion'],
   );
@@ -36,6 +39,7 @@ class PagoModel {
     'fechaPago': Timestamp.fromDate(fechaPago),
     'monto': monto,
     'mes': mes,
+    'anio': anio,
     'estado': estado,
     'observacion': observacion,
   };

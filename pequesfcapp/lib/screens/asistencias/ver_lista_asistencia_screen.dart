@@ -28,7 +28,19 @@ class _VerListaAsistenciaScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lista de Asistencia'),
-        backgroundColor: const Color(0xFFD32F2F),
+        //gradiente
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFD32F2F),
+                Color(0xFFF57C00),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -112,7 +124,8 @@ class _VerListaAsistenciaScreenState
                               ? Colors.green[50]
                               : asistencia.permiso == true
                                   ? Colors.amber[50]
-                                  : asistencia.presente == false && asistencia.permiso == false
+                                  : asistencia.presente == false &&
+                                          asistencia.permiso == false
                                       ? Colors.red[50]
                                       : null,
                           child: ListTile(
@@ -134,9 +147,9 @@ class _VerListaAsistenciaScreenState
                                 if (asistencia.presente == true)
                                   const Icon(Icons.check_circle,
                                       color: Colors.green),
-                                if (asistencia.presente == false && asistencia.permiso == false)
-                                  const Icon(Icons.cancel, 
-                                  color: Colors.red),
+                                if (asistencia.presente == false &&
+                                    asistencia.permiso == false)
+                                  const Icon(Icons.cancel, color: Colors.red),
                                 const SizedBox(width: 8),
                                 Text(
                                   asistencia.horaRegistro != null

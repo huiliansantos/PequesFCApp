@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/player_model.dart';
 import '../../providers/pago_provider.dart';
 import '../../models/pago_model.dart';
-import 'payment_form.dart';
 
 const List<String> mesesDelAno = [
   'Enero',
@@ -19,22 +19,16 @@ const List<String> mesesDelAno = [
   'Diciembre'
 ];
 
-class PaymentHistoryScreen extends ConsumerStatefulWidget {
-  final String jugadorId;
-  final String jugadorNombre;
+class HistorialPagosHijoScreen extends ConsumerStatefulWidget {
+  final PlayerModel hijo;
 
-  const PaymentHistoryScreen({
-    Key? key,
-    required this.jugadorId,
-    required this.jugadorNombre,
-  }) : super(key: key);
+  const HistorialPagosHijoScreen({Key? key, required this.hijo}) : super(key: key);
 
   @override
-  ConsumerState<PaymentHistoryScreen> createState() =>
-      _PaymentHistoryScreenState();
+  ConsumerState<HistorialPagosHijoScreen> createState() => _HistorialPagosHijoScreenState();
 }
 
-class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
+class _HistorialPagosHijoScreenState extends ConsumerState<HistorialPagosHijoScreen> {
   String? anioSeleccionado;
   String estadoSeleccionado = 'todos';
 
@@ -43,12 +37,12 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    anioSeleccionado = '2025'; // Gestión por defecto al abrir la pantalla
+    anioSeleccionado = gestionActual.toString(); // Por defecto, gestión actual
   }
 
   @override
   Widget build(BuildContext context) {
-    final pagosAsync = ref.watch(pagosPorJugadorProvider(widget.jugadorId));
+    final pagosAsync = ref.watch(pagosPorJugadorProvider(widget.hijo.id));
 
     return Scaffold(
       appBar: AppBar(
@@ -66,7 +60,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           children: [
             const Text('Historial de Pagos'),
             Text(
-              widget.jugadorNombre,
+              '${widget.hijo.nombres} ${widget.hijo.apellido}',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -122,7 +116,6 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               ],
             ),
           ),
-          // ESTADO GENERAL DE LA GESTIÓN
           pagosAsync.when(
             loading: () => const SizedBox(height: 16),
             error: (e, _) => const SizedBox(height: 16),
@@ -258,20 +251,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         ),
                         backgroundColor: estadoColor,
                       ),
-                      onTap: pago.estado != 'pagado'
-                          ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PaymentForm(
-                                    jugadorId: widget.jugadorId,
-                                    jugadorNombre: widget.jugadorNombre,
-                                    mesInicial: pago.mes,
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
+                      // El onTap está deshabilitado para apoderado
+                      onTap: null,
                     ),
                   ));
                 }
@@ -294,18 +275,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                               style: TextStyle(color: Colors.white)),
                           backgroundColor: Colors.orange,
                         ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PaymentForm(
-                                jugadorId: widget.jugadorId,
-                                jugadorNombre: widget.jugadorNombre,
-                                mesInicial: mes,
-                              ),
-                            ),
-                          );
-                        },
+                        // El onTap está deshabilitado para apoderado
+                        onTap: null,
                       ),
                     ));
                   }

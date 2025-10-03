@@ -21,6 +21,8 @@ const List<String> mesesDelAno = [
   'Diciembre'
 ];
 
+const List<int> anios = [2021, 2022, 2023, 2024, 2025];
+
 class PaymentForm extends ConsumerStatefulWidget {
   final String jugadorId;
   final String jugadorNombre;
@@ -44,11 +46,13 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
   DateTime _fechaPago = DateTime.now();
   String _estado = 'pagado';
   String? _mesSeleccionado;
+  int? _anioSeleccionado; // <-- Nuevo campo
 
   @override
   void initState() {
     super.initState();
-    _mesSeleccionado = widget.mesInicial; // <-- Selecciona el mes recibido
+    _mesSeleccionado = widget.mesInicial;
+    _anioSeleccionado = 2025; // <-- Año por defecto
   }
 
   @override
@@ -118,6 +122,26 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Seleccione el mes';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                value: _anioSeleccionado,
+                decoration: const InputDecoration(
+                  labelText: 'Año',
+                  border: OutlineInputBorder(),
+                ),
+                items: anios.map((anio) =>
+                  DropdownMenuItem(value: anio, child: Text(anio.toString()))
+                ).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _anioSeleccionado = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null) return 'Seleccione el año';
                   return null;
                 },
               ),
@@ -193,6 +217,7 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
         fechaPago: _fechaPago,
         monto: double.tryParse(_montoController.text) ?? 0.0,
         mes: _mesSeleccionado ?? '',
+        anio: _anioSeleccionado ?? 0,
         estado: _estado,
         observacion: _observacionController.text.trim().isEmpty
             ? null

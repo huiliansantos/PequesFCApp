@@ -39,6 +39,8 @@ class _PaymentManagementScreenState
   String? categoriaSeleccionada;
   String estadoSeleccionado = 'todos';
 
+  int gestionActual = 2025; // Gestión por defecto para el estado general
+
   @override
   Widget build(BuildContext context) {
     final jugadoresAsync = ref.watch(playersProvider);
@@ -158,9 +160,12 @@ class _PaymentManagementScreenState
                             ? pagos
                             : pagos.where((p) => p.estado == estadoSeleccionado).toList();
 
+                        // Solo pagos de la gestión actual (2025)
+                        final pagosGestion = pagos.where((p) => p.anio == gestionActual).toList();
+
                         // Obtén el índice del último mes pagado
                         int ultimoMesPagado = -1;
-                        for (var pago in pagos) {
+                        for (var pago in pagosGestion) {
                           if (pago.estado == 'pagado') {
                             int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
                             if (mesIndex > ultimoMesPagado) {
@@ -170,7 +175,7 @@ class _PaymentManagementScreenState
                         }
 
                         // Mes actual (0 = Enero, 1 = Febrero, ...)
-                        int mesActual = DateTime.now().month - 1; // Si tu lista inicia en Enero
+                        int mesActual = DateTime.now().month - 1;
 
                         // Calcula cuántos meses debe hasta el mes actual
                         int mesesDeuda = mesActual - ultimoMesPagado;

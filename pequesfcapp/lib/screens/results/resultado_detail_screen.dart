@@ -15,9 +15,16 @@ class ResultadoDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: const Text('Detalle de Resultado'),
-        backgroundColor: const Color(0xFFD32F2F),
-        elevation: 2,
       ),
       body: partidosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

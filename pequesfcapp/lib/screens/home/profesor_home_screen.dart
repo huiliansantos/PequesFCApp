@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../models/profesor_model.dart';
-import '../players/player_list_screen.dart';
-import '../matches/match_schedule_screen.dart';
-import '../results/resultados_list_screen.dart';
-import '../asistencias/categoria_list_asistencia_screen.dart';
+import '../profesor/jugadores_profesor_screen.dart';
+import '../profesor/partidos_profesor_screen.dart';
+import '../profesor/resultados_profesor_screen.dart';
+import '../profesor/asistencia_profesor_screen.dart';
+import '../profesor/pagos_profesor_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../login/login_screen.dart';
 
 class ProfesorHomeScreen extends StatefulWidget {
   final ProfesorModel profesor;
@@ -22,15 +25,26 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
     'Partidos',
     'Resultados',
     'Asistencia',
+    'Pagos',
   ];
 
   List<Widget> get _screens => [
-    // Puedes filtrar los jugadores por widget.profesor.categoriaEquipoId si lo necesitas
-    PlayerListScreen(), // <-- Aquí puedes pasar el filtro de equipo si lo tienes implementado
-    MatchScheduleScreen(), // <-- Aquí puedes filtrar por equipo asignado
-    ResultadosListScreen(), // <-- Aquí puedes filtrar por equipo asignado
-    CategoriaListAsistenciaScreen(), // <-- Aquí puedes filtrar por equipo asignado
-  ];
+        JugadoresProfesorScreen(
+          categoriaEquipoIdProfesor: widget.profesor.categoriaEquipoId,
+        ),
+        PartidosProfesorScreen(
+          categoriaEquipoIdProfesor: widget.profesor.categoriaEquipoId,
+        ),
+        ResultadosProfesorScreen(
+          categoriaEquipoIdProfesor: widget.profesor.categoriaEquipoId,
+        ),
+        AsistenciaProfesorScreen(
+          categoriaEquipoIdProfesor: widget.profesor.categoriaEquipoId,
+        ),
+        PagosProfesorScreen(
+          categoriaEquipoIdProfesor: widget.profesor.categoriaEquipoId,
+        ),
+      ];
 
   List<Widget> _buildDrawerOptions(BuildContext context) {
     return [
@@ -38,6 +52,7 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
       _drawerItem(context, Icons.sports_soccer, 'Partidos', 1),
       _drawerItem(context, Icons.emoji_events, 'Resultados', 2),
       _drawerItem(context, Icons.checklist, 'Asistencia', 3),
+      _drawerItem(context, Icons.payments, 'Pagos', 4),
     ];
   }
 
@@ -66,9 +81,7 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
               colors: [
                 Color(0xFFD32F2F),
                 Color(0xFFF57C00),
-                Color(0xFF388E3C),
               ],
-              stops: [0.0, 0.85, 0.88], // El verde ocupa solo un 3%
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -84,10 +97,17 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
             iconTheme: const IconThemeData(color: Colors.white),
             actions: [
               IconButton(
-                icon: const Icon(Icons.logout),
+               icon: const Icon(Icons.logout),
                 tooltip: 'Cerrar sesión',
-                onPressed: () {
-                  Navigator.of(context).pushReplacementNamed('/login');
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 },
               ),
             ],
@@ -117,14 +137,12 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Escudo de la escuela
                         Image.asset(
                           'assets/peques.png',
                           width: 70,
                           height: 70,
                         ),
                         const SizedBox(height: 12),
-                        // Nombre completo
                         Text(
                           '${widget.profesor.nombre} ${widget.profesor.apellido}',
                           style: const TextStyle(
@@ -135,7 +153,6 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 4),
-                        // Rol
                         const Text(
                           'Profesor',
                           style: TextStyle(
@@ -161,9 +178,7 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
             colors: [
               Color(0xFFD32F2F),
               Color(0xFFF57C00),
-              Color(0xFF388E3C),
             ],
-            stops: [0.0, 0.85, 0.88],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -181,6 +196,7 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Partidos'),
             BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Resultados'),
             BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Asistencia'),
+            BottomNavigationBarItem(icon: Icon(Icons.payments), label: 'Pagos'),
           ],
         ),
       ),

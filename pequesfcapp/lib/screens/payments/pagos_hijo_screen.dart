@@ -5,7 +5,7 @@ import '../../models/player_model.dart';
 import '../../models/pago_model.dart';
 import '../../providers/pago_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
-
+import 'historial_pagos_hijo_screen.dart';
 class PagosHijoScreen extends ConsumerStatefulWidget {
   final List<PlayerModel> hijos;
 
@@ -73,9 +73,11 @@ class _PagosHijoScreenState extends ConsumerState<PagosHijoScreen> {
                         ? pagos
                         : pagos.where((p) => p.estado == estadoSeleccionado).toList();
 
+                    final pagosGestion = pagos.where((p) => p.anio == DateTime.now().year).toList();
+
                     // Obtén el índice del último mes pagado
                     int ultimoMesPagado = -1;
-                    for (var pago in pagos) {
+                    for (var pago in pagosGestion) {
                       if (pago.estado == 'pagado') {
                         int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
                         if (mesIndex > ultimoMesPagado) {
@@ -94,7 +96,7 @@ class _PagosHijoScreenState extends ConsumerState<PagosHijoScreen> {
                     Color estadoColor;
                     String estadoTexto;
 
-                    if (pagos.isEmpty) {
+                    if (pagosGestion.isEmpty) {
                       estadoColor = Colors.grey;
                       estadoTexto = 'Sin registro';
                     } else if (ultimoMesPagado >= mesActual) {
@@ -144,7 +146,14 @@ class _PagosHijoScreenState extends ConsumerState<PagosHijoScreen> {
                           visualDensity: VisualDensity.compact,
                         ),
                         onTap: () {
-                          // Aquí puedes navegar al historial de pagos del hijo
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HistorialPagosHijoScreen(
+                                hijo: hijo,
+                              ),
+                            ),
+                          );
                         },
                       ),
                     );

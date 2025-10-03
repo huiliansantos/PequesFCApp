@@ -23,8 +23,16 @@ class MatchDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle de Partido'),
-        backgroundColor: const Color(0xFFD32F2F),
-        elevation: 2,
+          //gradiente  como en toda la App
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+      ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

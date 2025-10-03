@@ -6,6 +6,7 @@ import '../../providers/asistencia_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
 import '../../models/categoria_equipo_model.dart';
+import 'modificar_asistencia_screen.dart';
 
 class RegistroAsistenciaScreen extends ConsumerStatefulWidget {
   final String categoriaEquipoId;
@@ -35,10 +36,40 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
     final categoriaEquipoAsync = ref.watch(categoriasEquiposProvider);
     final asistenciasAsync = ref.watch(asistenciasPorEntrenamientoProvider(widget.entrenamientoId));
 
+    final bool asistenciaYaRegistrada = jugadoresAsync.when(
+      loading: () => false,
+      error: (e, _) => false,
+      data: (jugadores) {
+        final asistencias = asistenciasAsync.value ?? [];
+        final jugadoresFiltrados = jugadores.where((j) {
+          final yaRegistrado = asistencias.any((a) =>
+            a.jugadorId == j.id &&
+            a.fecha.day == widget.fecha.day &&
+            a.fecha.month == widget.fecha.month &&
+            a.fecha.year == widget.fecha.year
+          );
+          return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
+        }).toList();
+        return jugadoresFiltrados.isEmpty;
+      },
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registro de Asistencia'),
-        backgroundColor: const Color(0xFFD32F2F),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFD32F2F),
+                Color(0xFFF57C00),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      
       ),
       body: categoriaEquipoAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -190,37 +221,53 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
       floatingActionButton: (widget.rol == 'admin' || widget.rol == 'profesor')
         ? FloatingActionButton.extended(
             backgroundColor: const Color(0xFFD32F2F),
-            icon: const Icon(Icons.save),
-            label: const Text('Guardar Asistencia'),
+            icon: Icon(asistenciaYaRegistrada ? Icons.edit : Icons.save),
+            label: Text(asistenciaYaRegistrada ? 'Modificar Asistencia' : 'Guardar Asistencia'),
             onPressed: () async {
-              final jugadores = ref.read(playersProvider).value ?? [];
-              final asistencias = ref.read(asistenciasPorEntrenamientoProvider(widget.entrenamientoId)).value ?? [];
-              final jugadoresFiltrados = jugadores.where((j) {
-                final yaRegistrado = asistencias.any((a) =>
-                  a.jugadorId == j.id &&
-                  a.fecha.day == widget.fecha.day &&
-                  a.fecha.month == widget.fecha.month &&
-                  a.fecha.year == widget.fecha.year
+              if (asistenciaYaRegistrada) {
+                // Navegar a pantalla de modificar asistencia
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ModificarAsistenciaScreen(
+                      categoriaEquipoId: widget.categoriaEquipoId,
+                      entrenamientoId: widget.entrenamientoId,
+                      fecha: widget.fecha,
+                      rol: widget.rol,
+                    ),
+                  ),
                 );
-                return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
-              }).toList();
-              final repo = ref.read(asistenciaRepositoryProvider);
-              final horaRegistro = DateTime.now();
-              for (final jugador in jugadoresFiltrados) {
-                final asistencia = AsistenciaModel(
-                  id: const Uuid().v4(),
-                  jugadorId: jugador.id,
-                  entrenamientoId: widget.entrenamientoId,
-                  categoriaEquipoId: widget.categoriaEquipoId,
-                  fecha: widget.fecha,
-                  presente: asistenciaMap[jugador.id] ?? false,
-                  permiso: permisoMap[jugador.id] ?? false,
-                  horaRegistro: horaRegistro,
-                  observacion: null,
-                );
-                await repo.registrarAsistencia(asistencia);
+              } else {
+                // Guardar asistencia (igual que antes)
+                final jugadores = ref.read(playersProvider).value ?? [];
+                final asistencias = ref.read(asistenciasPorEntrenamientoProvider(widget.entrenamientoId)).value ?? [];
+                final jugadoresFiltrados = jugadores.where((j) {
+                  final yaRegistrado = asistencias.any((a) =>
+                    a.jugadorId == j.id &&
+                    a.fecha.day == widget.fecha.day &&
+                    a.fecha.month == widget.fecha.month &&
+                    a.fecha.year == widget.fecha.year
+                  );
+                  return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
+                }).toList();
+                final repo = ref.read(asistenciaRepositoryProvider);
+                final horaRegistro = DateTime.now();
+                for (final jugador in jugadoresFiltrados) {
+                  final asistencia = AsistenciaModel(
+                    id: const Uuid().v4(),
+                    jugadorId: jugador.id,
+                    entrenamientoId: widget.entrenamientoId,
+                    categoriaEquipoId: widget.categoriaEquipoId,
+                    fecha: widget.fecha,
+                    presente: asistenciaMap[jugador.id] ?? false,
+                    permiso: permisoMap[jugador.id] ?? false,
+                    horaRegistro: horaRegistro,
+                    observacion: null,
+                  );
+                  await repo.registrarAsistencia(asistencia);
+                }
+                if (context.mounted) Navigator.pop(context);
               }
-              if (context.mounted) Navigator.pop(context);
             },
           )
         : null,

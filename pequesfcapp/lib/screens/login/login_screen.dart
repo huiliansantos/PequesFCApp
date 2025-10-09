@@ -10,7 +10,7 @@ import '../../providers/profesor_provider.dart';
 import '../../models/guardian_model.dart';
 import '../../models/player_model.dart';
 import '../../repositories/guardian_repository.dart';
-import '../../repositories/player_repository.dart';
+import '../../repositories/player_repository.dart' as player_repo;
 import '../home/apoderado_home_screen.dart';
 import '../home/home_screen.dart';
 import '../home/profesor_home_screen.dart';
@@ -135,7 +135,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               final guardianRepo = ref.read(guardianRepositoryProvider);
                               final guardian = await guardianRepo.autenticarGuardian(email, password);
                               if (guardian != null) {
-                                final playerRepo = ref.read(playerRepositoryProvider);
+                                final playerRepo = ref.read(player_repo.playerRepositoryProvider);
                                 final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
                                 Navigator.pushReplacement(
                                   context,

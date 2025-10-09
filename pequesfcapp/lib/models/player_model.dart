@@ -35,7 +35,8 @@ class PlayerModel {
     DateTime fecha;
     if (map['fechaDeNacimiento'] is String) {
       fecha = DateTime.tryParse(map['fechaDeNacimiento'] as String) ?? DateTime.now();
-    } else if (map['fechaDeNacimiento'] != null && map['fechaDeNacimiento'] is dynamic && map['fechaDeNacimiento'].toString().contains('Timestamp')) {
+    } else if (map['fechaDeNacimiento'] != null &&
+        map['fechaDeNacimiento'].toString().contains('Timestamp')) {
       fecha = (map['fechaDeNacimiento'] as dynamic).toDate();
     } else {
       fecha = DateTime.now();
@@ -72,5 +73,35 @@ class PlayerModel {
       'estadoPago': estadoPago,
       'categoriaEquipoId': categoriaEquipoId,
     };
+  }
+
+  PlayerModel copyWith({
+    String? id,
+    String? nombres,
+    String? apellido,
+    DateTime? fechaDeNacimiento,
+    String? genero,
+    String? foto,
+    String? ci,
+    String? nacionalidad,
+    String? departamentoBolivia,
+    String? guardianId,
+    String? estadoPago,
+    String? categoriaEquipoId,
+  }) {
+    return PlayerModel(
+      id: id ?? this.id,
+      nombres: nombres ?? this.nombres,
+      apellido: apellido ?? this.apellido,
+      fechaDeNacimiento: fechaDeNacimiento ?? this.fechaDeNacimiento,
+      genero: genero ?? this.genero,
+      foto: foto ?? this.foto,
+      ci: ci ?? this.ci,
+      nacionalidad: nacionalidad ?? this.nacionalidad,
+      departamentoBolivia: departamentoBolivia ?? this.departamentoBolivia,
+      guardianId: guardianId ?? this.guardianId,
+      estadoPago: estadoPago ?? this.estadoPago,
+      categoriaEquipoId: categoriaEquipoId ?? this.categoriaEquipoId,
+    );
   }
 }

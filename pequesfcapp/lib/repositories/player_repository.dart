@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/player_model.dart';
 
 class PlayerRepository {
@@ -88,3 +89,20 @@ class PlayerRepository {
     }
   }
 }
+
+// Provider del repositorio
+final playerRepositoryProvider = Provider<PlayerRepository>((ref) {
+  return PlayerRepository();
+});
+
+// Provider reactivo de todos los jugadores
+final playersProvider = StreamProvider<List<PlayerModel>>((ref) {
+  final repo = ref.watch(playerRepositoryProvider);
+  return repo.playersStream();
+});
+
+// Provider reactivo de un solo jugador por id
+final playerByIdProvider = StreamProvider.family<PlayerModel?, String>((ref, id) {
+  final repo = ref.watch(playerRepositoryProvider);
+  return repo.playerStreamById(id);
+});

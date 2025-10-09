@@ -6,6 +6,8 @@ import '../../models/player_model.dart';
 import '../../widgets/gradient_button.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
+import '../../models/categoria_equipo_model.dart';
+import '../../repositories/categoria_equipo_repository.dart';
 
 class PlayerFormScreen extends ConsumerStatefulWidget {
   final PlayerModel? player;
@@ -169,12 +171,84 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
     if (context.mounted) Navigator.pop(context);
   }
 
+  Future<void> _registrarNuevaCategoriaEquipo(BuildContext context) async {
+    final _categoriaController = TextEditingController();
+    final _equipoController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String? nuevoId;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Registrar nueva categoría-equipo'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _categoriaController,
+                  decoration: const InputDecoration(labelText: 'Categoría'),
+                  validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                ),
+                TextFormField(
+                  controller: _equipoController,
+                  decoration: const InputDecoration(labelText: 'Equipo'),
+                  validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final repo = ref.read(categoriaEquipoRepositoryProvider);
+                  await repo.addCategoriaEquipo(
+                    CategoriaEquipoModel(
+                      id: const Uuid().v4(),
+                      categoria: _categoriaController.text,
+                      equipo: _equipoController.text,
+                    ),
+                  );
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Registrar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (nuevoId != null) {
+      setState(() {
+        categoriaEquipoId = nuevoId;
+      });
+      // Puedes recargar el provider si lo necesitas
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy', 'es_ES');
     final categoriasEquiposAsync = ref.watch(categoriasEquiposProvider);
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: Text(widget.player == null ? 'Crear Jugador' : 'Editar Jugador'),
       ),
       body: Padding(
@@ -266,19 +340,39 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
                 loading: () => const CircularProgressIndicator(),
                 error: (e, _) => Text('Error: $e'),
                 data: (lista) {
-                  if (lista.isEmpty) {
-                    return const Text('No hay categorías-equipo registradas');
+                  // Ordenar de menor a mayor por el campo categoria (asumiendo que es numérico)
+                  final listaOrdenada = [...lista]
+                    ..sort((a, b) => int.parse(a.categoria).compareTo(int.parse(b.categoria)));
+
+                  // Si hay fecha de nacimiento, filtra solo la categoría correspondiente
+                  List<CategoriaEquipoModel> listaFiltrada = listaOrdenada;
+                  if (fechaDeNacimiento != null) {
+                    final anioNacimiento = fechaDeNacimiento!.year.toString();
+                    listaFiltrada = listaOrdenada.where((cat) => cat.categoria == anioNacimiento).toList();
                   }
+
                   return DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Categoría-Equipo'),
-                    value: lista.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
-                    items: lista.map((item) =>
-                      DropdownMenuItem(
-                        value: item.id,
-                        child: Text('${item.categoria} - ${item.equipo}'),
-                      )
-                    ).toList(),
-                    onChanged: (value) => setState(() => categoriaEquipoId = value),
+                    value: listaFiltrada.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
+                    items: [
+                      const DropdownMenuItem(
+                        value: 'nueva_categoria_equipo',
+                        child: Text('Registrar nueva categoría-equipo'),
+                      ),
+                      ...listaFiltrada.map((item) =>
+                        DropdownMenuItem(
+                          value: item.id,
+                          child: Text('${item.categoria} - ${item.equipo}'),
+                        )
+                      ),
+                    ],
+                    onChanged: (value) async {
+                      if (value == 'nueva_categoria_equipo') {
+                        await _registrarNuevaCategoriaEquipo(context);
+                      } else {
+                        setState(() => categoriaEquipoId = value);
+                      }
+                    },
                     validator: (v) => v == null ? 'Selecciona una categoría-equipo' : null,
                   );
                 },
@@ -286,10 +380,8 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
               const SizedBox(height: 20),
               GradientButton(
                 onPressed: _savePlayer,
-                // Cambia el texto del botón según si es creación o edición
                 child: Text(widget.player == null ? 'Crear' : 'Actualizar'),
               ),
-            
             ],
           ),
         ),

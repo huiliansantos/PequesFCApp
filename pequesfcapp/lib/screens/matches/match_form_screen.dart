@@ -121,7 +121,16 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.match == null ? 'Registrar Partido' : 'Modificar Partido'),
-        backgroundColor: const Color(0xFFD32F2F),
+        //degradado de la app
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+      ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

@@ -5,13 +5,15 @@ import '../../providers/guardian_provider.dart';
 import '../guardians/guardian_detail_screen.dart';
 import '../guardians/guardian_form_screen.dart';
 import '../../models/categoria_equipo_model.dart';
+import '../guardians/asignar_apoderado_screen.dart';
 import '../../providers/categoria_equipo_provider.dart';
 
 String calcularCategoria(DateTime fechaNacimiento) {
   final ahora = DateTime.now();
   int edad = ahora.year - fechaNacimiento.year;
   if (ahora.month < fechaNacimiento.month ||
-      (ahora.month == fechaNacimiento.month && ahora.day < fechaNacimiento.day)) {
+      (ahora.month == fechaNacimiento.month &&
+          ahora.day < fechaNacimiento.day)) {
     edad--;
   }
   return 'Sub-$edad';
@@ -36,7 +38,15 @@ class PlayerDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('${player.nombres} ${player.apellido}'),
-        backgroundColor: const Color(0xFFD32F2F),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 2,
       ),
       body: Padding(
@@ -76,12 +86,15 @@ class PlayerDetailScreen extends ConsumerWidget {
                     _buildDetailItem(
                         'Nacionalidad', player.nacionalidad, Icons.flag),
                     categoriaEquipoAsync.when(
-                      loading: () => _buildDetailItem('Categoria - Equipo', 'Cargando...', Icons.sports_soccer),
-                      error: (e, _) => _buildDetailItem('Categoria - Equipo', 'Error', Icons.sports_soccer),
+                      loading: () => _buildDetailItem('Categoria - Equipo',
+                          'Cargando...', Icons.sports_soccer),
+                      error: (e, _) => _buildDetailItem(
+                          'Categoria - Equipo', 'Error', Icons.sports_soccer),
                       data: (lista) {
                         final categoriaEquipo = lista.firstWhere(
                           (item) => item.id == player.categoriaEquipoId,
-                          orElse: () => CategoriaEquipoModel(id: '', categoria: 'Sin asignar', equipo: ''),
+                          orElse: () => CategoriaEquipoModel(
+                              id: '', categoria: 'Sin asignar', equipo: ''),
                         );
                         return _buildDetailItem(
                           'Cat - Equipo',
@@ -131,14 +144,15 @@ class PlayerDetailScreen extends ConsumerWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => GuardianDetailScreen(guardianId: player.guardianId!),
+                        builder: (_) => GuardianDetailScreen(
+                            guardianId: player.guardianId!),
                       ),
                     );
                   } else {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => GuardianFormScreen(jugador: player), // <-- Aquí pasas el jugador
+                        builder: (_) => AsignarApoderadoScreen(jugador: player),
                       ),
                     );
                   }
@@ -174,8 +188,8 @@ class PlayerDetailScreen extends ConsumerWidget {
                                         guardian.nombreCompleto, Icons.person),
                                     _buildDetailItem(
                                         'CI', guardian.ci, Icons.badge),
-                                    _buildDetailItem(
-                                        'Celular', guardian.celular, Icons.phone),
+                                    _buildDetailItem('Celular',
+                                        guardian.celular, Icons.phone),
                                   ],
                                 ),
                         ),
@@ -183,27 +197,6 @@ class PlayerDetailScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 10),
-            
-            ElevatedButton.icon(
-              icon: const Icon(Icons.person_add),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD32F2F),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: () {
-                // Aquí puedes navegar a una pantalla para asignar o cambiar apoderado
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GuardianFormScreen(jugador: player), // <-- Aquí pasas el jugador
-                  ),
-                );
-                // Navigator.push(context, MaterialPageRoute(builder: (_) => AsignarApoderadoScreen(player: player)));
-              },
-              label: const Text('Asignar o Cambiar Apoderado'),
-            ),
           ],
         ),
       ),

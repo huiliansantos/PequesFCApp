@@ -4,15 +4,18 @@ import 'package:uuid/uuid.dart';
 import '../../models/categoria_equipo_model.dart';
 import '../../providers/categoria_equipo_provider.dart';
 import '../../providers/player_provider.dart';
+import '../../widgets/gradient_button.dart';
 
 class CategoriaEquipoFormScreen extends ConsumerStatefulWidget {
   const CategoriaEquipoFormScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<CategoriaEquipoFormScreen> createState() => _CategoriaEquipoFormScreenState();
+  ConsumerState<CategoriaEquipoFormScreen> createState() =>
+      _CategoriaEquipoFormScreenState();
 }
 
-class _CategoriaEquipoFormScreenState extends ConsumerState<CategoriaEquipoFormScreen> {
+class _CategoriaEquipoFormScreenState
+    extends ConsumerState<CategoriaEquipoFormScreen> {
   final _formKey = GlobalKey<FormState>();
   String? categoriaSeleccionada;
   String? equipoSeleccionado;
@@ -52,7 +55,19 @@ class _CategoriaEquipoFormScreenState extends ConsumerState<CategoriaEquipoFormS
     final jugadoresAsync = ref.watch(playersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrar Categoría-Equipo')),
+      appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          //reducir el tamaño del texto del AppBar
+          title: const Text('Registrar Categoría-Equipo', style: TextStyle(fontSize: 18)),
+      ),
       body: jugadoresAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -75,10 +90,12 @@ class _CategoriaEquipoFormScreenState extends ConsumerState<CategoriaEquipoFormS
               child: ListView(
                 children: [
                   DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Categoría (año de nacimiento)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Categoría (año de nacimiento)'),
                     value: categoriaSeleccionada,
                     items: categorias
-                        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                        .map((cat) =>
+                            DropdownMenuItem(value: cat, child: Text(cat)))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -88,22 +105,31 @@ class _CategoriaEquipoFormScreenState extends ConsumerState<CategoriaEquipoFormS
                     },
                     validator: (v) => v == null || v.isEmpty
                         ? 'Campo obligatorio'
-                        : (v == 'Otro' && categoriaOtroController.text.trim().isEmpty
+                        : (v == 'Otro' &&
+                                categoriaOtroController.text.trim().isEmpty
                             ? 'Ingresa una nueva categoría'
                             : null),
                   ),
                   if (categoriaSeleccionada == 'Otro')
                     TextFormField(
                       controller: categoriaOtroController,
-                      decoration: const InputDecoration(labelText: 'Nueva categoría'),
-                      validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                      decoration:
+                          const InputDecoration(labelText: 'Nueva categoría'),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Campo obligatorio';
+                        if (!RegExp(r'^\d+$').hasMatch(v))
+                          return 'Solo números';
+                        return null;
+                      },
                     ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Equipo'),
                     value: equipoSeleccionado,
                     items: equipos
-                        .map((eq) => DropdownMenuItem(value: eq, child: Text(eq)))
+                        .map((eq) =>
+                            DropdownMenuItem(value: eq, child: Text(eq)))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -113,21 +139,23 @@ class _CategoriaEquipoFormScreenState extends ConsumerState<CategoriaEquipoFormS
                     },
                     validator: (v) => v == null || v.isEmpty
                         ? 'Campo obligatorio'
-                        : (v == 'Otro' && equipoOtroController.text.trim().isEmpty
+                        : (v == 'Otro' &&
+                                equipoOtroController.text.trim().isEmpty
                             ? 'Ingresa un nuevo equipo'
                             : null),
                   ),
                   if (equipoSeleccionado == 'Otro')
                     TextFormField(
                       controller: equipoOtroController,
-                      decoration: const InputDecoration(labelText: 'Nuevo equipo'),
-                      validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                      decoration:
+                          const InputDecoration(labelText: 'Nuevo equipo'),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Campo obligatorio' : null,
                     ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.save),
-                    label: const Text('Guardar'),
+                  GradientButton(
                     onPressed: _guardar,
+                    child: Text('Guardar'),
                   ),
                 ],
               ),

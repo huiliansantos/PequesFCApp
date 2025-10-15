@@ -7,6 +7,7 @@ import '../guardians/guardian_form_screen.dart';
 import '../../models/categoria_equipo_model.dart';
 import '../guardians/asignar_apoderado_screen.dart';
 import '../../providers/categoria_equipo_provider.dart';
+import '../../providers/pago_provider.dart';
 
 String calcularCategoria(DateTime fechaNacimiento) {
   final ahora = DateTime.now();
@@ -31,9 +32,15 @@ class PlayerDetailScreen extends ConsumerWidget {
     final guardianAsync = player.guardianId != null
         ? ref.watch(guardianByIdProvider(player.guardianId!))
         : null;
-
-    // Obtén el objeto CategoriaEquipoModel usando el provider
     final categoriaEquipoAsync = ref.watch(categoriasEquiposProvider);
+
+    // Obtén los pagos del jugador
+    final pagosAsync = ref.watch(pagosPorJugadorProvider(player.id));
+    final gestionActual = DateTime.now().year;
+    const mesesDelAno = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -68,28 +75,29 @@ class PlayerDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _buildDetailItem('Nombres', player.nombres, Icons.person),
-                    _buildDetailItem(
-                        'Apellido', player.apellido, Icons.person_outline),
+                    _buildDetailItem('Nombres', player.nombres, Icons.person, iconColor: Colors.blue),
+                    _buildDetailItem('Apellido', player.apellido, Icons.person_outline, iconColor: Colors.blue),
                     _buildDetailItem(
                       'Fecha de Nacimiento',
                       '${player.fechaDeNacimiento.day}/${player.fechaDeNacimiento.month}/${player.fechaDeNacimiento.year}',
                       Icons.cake,
+                      iconColor: Colors.purple
                     ),
                     _buildDetailItem(
                       'Departamento',
                       player.departamentoBolivia ?? 'Sin asignar',
                       Icons.location_city,
+                      iconColor: Colors.orange
                     ),
-                    _buildDetailItem('Género', player.genero, Icons.wc),
-                    _buildDetailItem('CI', player.ci, Icons.badge),
+                    _buildDetailItem('Género', player.genero, Icons.wc, iconColor: Colors.teal),
+                    _buildDetailItem('CI', player.ci, Icons.badge, iconColor: Colors.blue),
                     _buildDetailItem(
-                        'Nacionalidad', player.nacionalidad, Icons.flag),
+                        'Nacionalidad', player.nacionalidad, Icons.flag, iconColor: Colors.red),
                     categoriaEquipoAsync.when(
                       loading: () => _buildDetailItem('Categoria - Equipo',
-                          'Cargando...', Icons.sports_soccer),
+                          'Cargando...', Icons.sports_soccer, iconColor: Colors.green),
                       error: (e, _) => _buildDetailItem(
-                          'Categoria - Equipo', 'Error', Icons.sports_soccer),
+                          'Categoria - Equipo', 'Error', Icons.sports_soccer, iconColor: Colors.green),
                       data: (lista) {
                         final categoriaEquipo = lista.firstWhere(
                           (item) => item.id == player.categoriaEquipoId,
@@ -100,16 +108,54 @@ class PlayerDetailScreen extends ConsumerWidget {
                           'Cat - Equipo',
                           '${categoriaEquipo.categoria} - ${categoriaEquipo.equipo}',
                           Icons.sports_soccer,
+                          iconColor: Colors.green,
                         );
                       },
                     ),
-                    _buildDetailItem(
-                      'Estado de Pago',
-                      player.estadoPago ?? 'Sin registro',
-                      Icons.attach_money,
-                      valueColor: player.estadoPago == 'Pagado'
-                          ? Colors.green
-                          : Colors.red,
+                    // Estado de Pago calculado desde la BD
+                    pagosAsync.when(
+                      loading: () => _buildDetailItem(
+                        'Estado de Pago', 'Cargando...', Icons.attach_money),
+                      error: (e, _) => _buildDetailItem(
+                        'Estado de Pago', 'Error', Icons.attach_money),
+                      data: (pagos) {
+                        final pagosGestion = pagos.where((p) => p.anio == gestionActual).toList();
+                        int ultimoMesPagado = -1;
+                        for (var pago in pagosGestion) {
+                          if (pago.estado == 'pagado') {
+                            int mesIndex = mesesDelAno.indexOf(pago.mes);
+                            if (mesIndex > ultimoMesPagado) {
+                              ultimoMesPagado = mesIndex;
+                            }
+                          }
+                        }
+                        int mesActual = DateTime.now().month - 1;
+                        int mesesDeuda = mesActual - ultimoMesPagado;
+
+                        Color estadoColor;
+                        String estadoTexto;
+
+                        if (pagosGestion.isEmpty) {
+                          estadoColor = Colors.grey;
+                          estadoTexto = 'Sin registro';
+                        } else if (ultimoMesPagado >= mesActual) {
+                          estadoColor = Colors.green;
+                          estadoTexto = 'Pagado';
+                        } else if (mesesDeuda > 3) {
+                          estadoColor = Colors.red;
+                          estadoTexto = 'Atrasado';
+                        } else {
+                          estadoColor = Colors.orange;
+                          estadoTexto = 'Pendiente';
+                        }
+
+                        return _buildDetailItem(
+                          'Estado de Pago',
+                          estadoTexto,
+                          Icons.attach_money,
+                          valueColor: estadoColor,
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -204,21 +250,21 @@ class PlayerDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildDetailItem(String label, String value, IconData icon,
-      {Color? valueColor}) {
+      {Color? valueColor, Color iconColor = const Color(0xFFD32F2F)}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0), // Menor espacio
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFFD32F2F)),
+          Icon(icon, color: iconColor),
           const SizedBox(width: 8),
           Text(
             '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: valueColor ?? Colors.black),
+              style: TextStyle(color: valueColor ?? Colors.black, fontSize: 13),
             ),
           ),
         ],

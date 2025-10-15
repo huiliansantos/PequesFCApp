@@ -6,7 +6,13 @@ final guardianRepositoryProvider = Provider<GuardianRepository>((ref) => Guardia
 
 final guardiansStreamProvider = StreamProvider<List<GuardianModel>>((ref) {
   return ref.watch(guardianRepositoryProvider).guardiansStream();
+} );
+//buscarPorCI buscarPorCI
+final guardianByCIProvider = FutureProvider.family<GuardianModel?, String>((ref, ci) {
+  return ref.watch(guardianRepositoryProvider).buscarPorCI(ci);
 });
+
+
 
 final guardianByIdProvider = StreamProvider.family<GuardianModel?, String>((ref, id) {
   return ref.watch(guardianRepositoryProvider).guardianStreamById(id);

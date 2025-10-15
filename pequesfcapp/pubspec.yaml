@@ -24,6 +24,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
+  pdf: ^3.10.4
+  printing: ^5.11.0
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +41,10 @@ flutter:
     - assets/jugador.png
     - assets/peques.png
     - assets/rival.png
+    - assets/profesor.png
+    - assets/apoderado.png
+
+
 
 flutter_icons:
   android: true

@@ -16,6 +16,8 @@ import '../profesor/profesor_list_screen.dart';
 import '../asistencias/categoria_list_asistencia_screen.dart';
 import '../categorias/categoria_equipo_form_screen.dart';
 import '../profesor/profesor_form_screen.dart';
+// Importa la pantalla de reportes
+import '../reportes/reportes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String role;
@@ -48,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Categorías-Equipos',
     'Profesores',
     'Torneos',
+    'Reportes', // Nuevo título
   ];
 
   static final List<Widget> _adminScreens = [
@@ -60,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ReporteAsistenciaScreen(jugadorId: ''),
     ProfesorListScreen(),
     Center(child: Text('Torneos')), // Placeholder
+    ReportesScreen(), // Nueva pantalla de reportes
   ];
 
   static const List<String> _apoderadoTitles = [
@@ -69,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Resultados',
     'Pagos',
     'Asistencias',
+    'Reportes', // Nuevo título
   ];
 
   List<Widget> get _apoderadoScreens => [
@@ -78,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ResultadosListScreen(),
         PaymentManagementScreen(),
         ReporteAsistenciaScreen(jugadorId: widget.jugadorId ?? ''),
+        ReportesScreen(), // Nueva pantalla de reportes
       ];
 
   List<BottomNavigationBarItem> get _navItems => widget.role == 'admin'
@@ -120,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _drawerItem(context, Icons.checklist, 'Categorías-Equipos', 6),
         _drawerItem(context, Icons.school, 'Profesores', 7),
         _drawerItem(context, Icons.emoji_events_outlined, 'Torneos', 8),
+        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 9), // Nuevo ítem
       ];
     } else {
       return [
@@ -129,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _drawerItem(context, Icons.emoji_events, 'Resultados', 3),
         _drawerItem(context, Icons.payment, 'Pagos', 4),
         _drawerItem(context, Icons.checklist, 'Asistencias', 5),
+        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 6), // Nuevo ítem
       ];
     }
   }
@@ -142,10 +150,17 @@ class _HomeScreenState extends State<HomeScreen> {
       title: Text(title),
       selected: _selectedIndex == index,
       onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
         Navigator.pop(context);
+        if (title == 'Reportes') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ReportesScreen()),
+          );
+        } else {
+          setState(() {
+            _selectedIndex = index;
+          });
+        }
       },
     );
   }
@@ -275,21 +290,21 @@ class _HomeScreenState extends State<HomeScreen> {
             end: Alignment.bottomRight,
           ),
         ),      
-    
+
         child: BottomNavigationBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-        currentIndex: bottomNavIndex,
-        onTap: (navIndex) {
-          setState(() {
-            _selectedIndex = _bottomNavToScreenIndex[navIndex];
-          });
-        },
-        selectedItemColor: Colors.white,
+          currentIndex: bottomNavIndex,
+          onTap: (navIndex) {
+            setState(() {
+              _selectedIndex = _bottomNavToScreenIndex[navIndex];
+            });
+          },
+          selectedItemColor: Colors.white,
           unselectedItemColor: Colors.white70,
-        type: BottomNavigationBarType.fixed,
-        items: _navItems,
-      ),
+          type: BottomNavigationBarType.fixed,
+          items: _navItems,
+        ),
       ),
       floatingActionButton: widget.role == 'admin'
           ? FloatingActionButton(

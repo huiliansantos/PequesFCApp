@@ -67,8 +67,9 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFD32F2F),
-                          child: const Icon(Icons.family_restroom, color: Colors.white),
+                          backgroundImage: 
+                          const AssetImage('assets/apoderado.png'),
+                          
                         ),
                         title: Text(
                           guardian.nombreCompleto,

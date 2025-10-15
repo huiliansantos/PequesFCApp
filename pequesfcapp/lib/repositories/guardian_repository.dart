@@ -10,6 +10,16 @@ class GuardianRepository {
       snapshot.docs.map((doc) => GuardianModel.fromMap(doc.data())).toList()
     );
   }
+  // Buscar un guardian por su Carnet de Identidad (CI)
+  Future<GuardianModel?> buscarPorCI(String ci) async {
+    final query = await _db
+        .collection('guardianes')
+        .where('ci', isEqualTo: ci)
+        .limit(1)
+        .get();
+    if (query.docs.isEmpty) return null;
+    return GuardianModel.fromMap(query.docs.first.data());
+  }
 
   // Obtener un guardian por ID
   Future<GuardianModel?> getGuardianById(String id) async {
@@ -72,6 +82,7 @@ class GuardianRepository {
     }
     return null;
   }
+
 
   // Stream de un guardian por ID (actualización en tiempo real)
   Stream<GuardianModel?> guardianStreamById(String id) {

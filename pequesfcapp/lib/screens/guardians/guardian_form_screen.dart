@@ -70,8 +70,30 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     return '$celular' 'pequestarija';
   }
 
+  Future<bool> existeCI(String ci) async {
+    final repo = ref.read(guardianRepositoryProvider);
+    final lista = await repo.buscarPorCI(ci);
+    // Si es edición, permite el mismo CI del apoderado actual
+    if (widget.guardian != null) {
+      return lista != null &&
+          lista is List &&
+          (lista as List).any((g) => g.ci == ci && g.id != widget.guardian!.id);
+    }
+    return lista != null && lista is List && (lista as List).isNotEmpty;
+  }
+
   Future<void> _saveGuardian() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validación extra: CI único
+    if (await existeCI(ciController.text)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ya existe un apoderado con ese carnet de identidad')),
+        );
+      }
+      return;
+    }
 
     // Genera usuario y contraseña automáticamente solo si es nuevo
     final usuarioGenerado = generarUsuario(nombreController.text, apellidoController.text, ciController.text);
@@ -126,7 +148,15 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.guardian == null ? 'Registrar Apoderado' : 'Editar Apoderado'),
-        backgroundColor: const Color(0xFFD32F2F),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -166,7 +196,7 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 decoration: const InputDecoration(labelText: 'CI'),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Campo obligatorio';
-                  if (!RegExp(r'^\d+$').hasMatch(v)) return 'Solo números';
+                  if (!RegExp(r'^\d{7,}$').hasMatch(v)) return 'Debe tener al menos 7 números';
                   return null;
                 },
                 keyboardType: TextInputType.number,
@@ -176,7 +206,7 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 decoration: const InputDecoration(labelText: 'Celular'),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Campo obligatorio';
-                  if (!RegExp(r'^\d{8}$').hasMatch(v)) return 'Debe tener 8 números';
+                  if (!RegExp(r'^\d{8,}$').hasMatch(v)) return 'Debe tener al menos 8 números';
                   return null;
                 },
                 keyboardType: TextInputType.number,
@@ -203,9 +233,11 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 loading: () => const CircularProgressIndicator(),
                 error: (e, _) => Text('Error: $e'),
                 data: (jugadores) {
+                  // Solo muestra los jugadores que están seleccionados o que coinciden con la búsqueda
                   final filtrados = jugadores.where((j) {
                     final nombre = '${j.nombres} ${j.apellido}'.toLowerCase();
-                    return nombre.contains(searchJugador);
+                    final seleccionado = jugadoresSeleccionados.contains(j.id);
+                    return seleccionado || (searchJugador.isNotEmpty && nombre.contains(searchJugador));
                   }).toList();
                   return Column(
                     children: filtrados

@@ -6,6 +6,7 @@ import 'providers/user_role_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/login/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'screens/dashboard/admin_dashboard_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -52,7 +53,7 @@ class PequesFCApp extends ConsumerWidget {
               }
               if (snapshot.hasData) {
                 if (snapshot.data == 'admin') {
-                  return const HomeScreen(role: 'admin');
+                  return HomeScreen(role: snapshot.data!);
                 } else {
                   return const Center(child: Text('Rol desconocido'));
                 }

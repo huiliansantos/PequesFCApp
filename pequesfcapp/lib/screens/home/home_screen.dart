@@ -16,8 +16,9 @@ import '../profesor/profesor_list_screen.dart';
 import '../asistencias/categoria_list_asistencia_screen.dart';
 import '../categorias/categoria_equipo_form_screen.dart';
 import '../profesor/profesor_form_screen.dart';
-// Importa la pantalla de reportes
 import '../reportes/reportes_screen.dart';
+import '../dashboard/admin_dashboard_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final String role;
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   static const List<String> _adminTitles = [
+    'Bienvenid@',
     'Jugadores',
     'Apoderados',
     'Partidos',
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   static final List<Widget> _adminScreens = [
+    AdminDashboardScreen(),
     PlayerListScreen(),
     GuardianListScreen(),
     MatchScheduleScreen(),
@@ -112,31 +115,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Relaciona el índice del BottomNav con el índice de las pantallas principales
   List<int> get _bottomNavToScreenIndex =>
-      widget.role == 'admin' ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
+      widget.role == 'admin' ? [1, 2, 3, 4, 5] : [0, 2, 3, 4];
 
   List<Widget> _buildDrawerOptions(BuildContext context) {
     if (widget.role == 'admin') {
       return [
-        _drawerItem(context, Icons.people, 'Jugadores', 0),
-        _drawerItem(context, Icons.family_restroom, 'Apoderados', 1),
-        _drawerItem(context, Icons.sports_soccer, 'Partidos', 2),
-        _drawerItem(context, Icons.emoji_events, 'Resultados', 3),
-        _drawerItem(context, Icons.payment, 'Pagos', 4),
-        _drawerItem(context, Icons.category, 'Asistencias', 5),
-        _drawerItem(context, Icons.checklist, 'Categorías-Equipos', 6),
-        _drawerItem(context, Icons.school, 'Profesores', 7),
-        _drawerItem(context, Icons.emoji_events_outlined, 'Torneos', 8),
-        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 9), // Nuevo ítem
+        _drawerItem(context, Icons.people, 'Inicio Administrador', 0),
+        _drawerItem(context, Icons.people, 'Jugadores', 1),
+        _drawerItem(context, Icons.family_restroom, 'Apoderados', 2),
+        _drawerItem(context, Icons.sports_soccer, 'Partidos', 3),
+        _drawerItem(context, Icons.emoji_events, 'Resultados', 4),
+        _drawerItem(context, Icons.payment, 'Pagos', 5),
+        _drawerItem(context, Icons.category, 'Asistencias', 6),
+        _drawerItem(context, Icons.checklist, 'Categorías-Equipos', 7),
+        _drawerItem(context, Icons.school, 'Profesores', 8),
+        _drawerItem(context, Icons.emoji_events_outlined, 'Torneos', 9),
+        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 10), // Nuevo ítem
       ];
     } else {
       return [
-        _drawerItem(context, Icons.people, 'Jugadores', 0),
-        _drawerItem(context, Icons.family_restroom, 'Apoderados', 1),
-        _drawerItem(context, Icons.sports_soccer, 'Partidos', 2),
-        _drawerItem(context, Icons.emoji_events, 'Resultados', 3),
-        _drawerItem(context, Icons.payment, 'Pagos', 4),
-        _drawerItem(context, Icons.checklist, 'Asistencias', 5),
-        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 6), // Nuevo ítem
+        _drawerItem(context, Icons.people, 'Inicio Apoderado', 0),
+        _drawerItem(context, Icons.people, 'Jugadores', 1),
+        _drawerItem(context, Icons.family_restroom, 'Apoderados', 2),
+        _drawerItem(context, Icons.sports_soccer, 'Partidos', 3),
+        _drawerItem(context, Icons.emoji_events, 'Resultados', 4),
+        _drawerItem(context, Icons.payment, 'Pagos', 5),
+        _drawerItem(context, Icons.checklist, 'Asistencias', 6),
+        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 7), // Nuevo ítem
       ];
     }
   }
@@ -200,6 +205,17 @@ class _HomeScreenState extends State<HomeScreen> {
             centerTitle: true,
             iconTheme: const IconThemeData(color: Colors.white),
             actions: [
+              // Botón Home (solo para admin)
+              if (widget.role == 'admin')
+                IconButton(
+                  icon: const Icon(Icons.home),
+                  tooltip: 'Inicio administrador',
+                  onPressed: () {
+                    setState(() {
+                      _selectedIndex = 0; // Ir al dashboard
+                    });
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: 'Cerrar sesión',

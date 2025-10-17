@@ -49,6 +49,7 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
     final resultado = ResultadoModel(
       id: widget.resultado?.id ?? const Uuid().v4(),
       partidoId: partidoId!,
+      fecha: DateTime.now(),
       golesFavor: golesFavor,
       golesContra: golesContra,
       observaciones: observacionesController.text,

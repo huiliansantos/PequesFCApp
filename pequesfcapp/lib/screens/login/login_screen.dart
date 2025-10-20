@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants.dart';
 import '../../providers/auth.provider.dart';
 import '../../providers/user_role_provider.dart';
-import '../../providers/player_provider.dart';
 import '../../providers/guardian_provider.dart';
 import '../../providers/profesor_provider.dart';
-import '../../models/guardian_model.dart';
-import '../../models/player_model.dart';
-import '../../repositories/guardian_repository.dart';
 import '../../repositories/player_repository.dart' as player_repo;
 import '../home/apoderado_home_screen.dart';
 import '../home/home_screen.dart';

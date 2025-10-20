@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/pago_model.dart';
 import '../../providers/pago_provider.dart';
 import '../../widgets/gradient_button.dart';
@@ -107,7 +106,7 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _mesSeleccionado,
+                initialValue: _mesSeleccionado,
                 decoration: const InputDecoration(
                   labelText: 'Mes',
                   border: OutlineInputBorder(),
@@ -127,7 +126,7 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                value: _anioSeleccionado,
+                initialValue: _anioSeleccionado,
                 decoration: const InputDecoration(
                   labelText: 'Año',
                   border: OutlineInputBorder(),
@@ -171,7 +170,7 @@ class _PaymentFormState extends ConsumerState<PaymentForm> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _estado,
+                initialValue: _estado,
                 decoration: const InputDecoration(
                   labelText: 'Estado',
                   border: OutlineInputBorder(),

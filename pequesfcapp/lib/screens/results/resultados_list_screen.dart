@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../../providers/resultado_provider.dart';
 import '../../providers/match_provider.dart';
-import '../../providers/categoria_equipo_provider.dart';
-import '../../models/resultado_model.dart';
 import '../../models/match_model.dart';
 import 'resultado_form_screen.dart';
 import 'resultado_detail_screen.dart';
@@ -83,7 +80,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
   Future<void> _deleteResultadoById(BuildContext context, String resultadoId, String? partidoId) async {
     final col = FirebaseFirestore.instance.collection('resultados');
     final scaffold = ScaffoldMessenger.of(context);
-    final idTrim = (resultadoId ?? '').trim();
+    final idTrim = (resultadoId).trim();
 
     try {
       // 1) Intentar borrar asumiendo que resultadoId es el document ID
@@ -149,7 +146,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
               // IDs de categorías presentes en los partidos
               final categoriasIds = partidos
                   .map((p) => p.categoriaEquipoId)
-                  .where((id) => id != null && id.isNotEmpty)
+                  .where((id) => id.isNotEmpty)
                   .toSet()
                   .toList();
 
@@ -160,7 +157,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                   error: (e, _) => Center(child: Text('Error categorías: $e')),
                   data: (idToLabel) {
                     final idLabelPairs = categoriasIds
-                        .map((id) => MapEntry(id!, idToLabel[id]?.trim() ?? id))
+                        .map((id) => MapEntry(id, idToLabel[id]?.trim() ?? id))
                         .toList()
                       ..sort((a, b) => a.value.compareTo(b.value));
 
@@ -240,9 +237,9 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                       );
 
                       // Calcula marcador y color
-                      final marcador = '${resultado.golesFavor ?? 0}-${resultado.golesContra ?? 0}';
-                      final gf = resultado.golesFavor ?? 0;
-                      final gc = resultado.golesContra ?? 0;
+                      final marcador = '${resultado.golesFavor}-${resultado.golesContra}';
+                      final gf = resultado.golesFavor;
+                      final gc = resultado.golesContra;
                       Color resultadoColor;
                       if (gf > gc) {
                         resultadoColor = Colors.green;
@@ -255,7 +252,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                       return FutureBuilder<String>(
                         future: getCategoriaEquipoNombre(partido.categoriaEquipoId),
                         builder: (context, snapshot) {
-                          final categoriaEquipoNombre = snapshot.data ?? (partido.categoriaEquipoId ?? 'Sin asignar');
+                          final categoriaEquipoNombre = snapshot.data ?? 'Sin asignar';
                           return Card(
                             margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -311,7 +308,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                                               ),
                                             );
                                             if (confirmar != true) return;
-                                            await _deleteResultadoById(context, resultado.id ?? '', resultado.partidoId);
+                                            await _deleteResultadoById(context, resultado.id, resultado.partidoId);
                                           },
                                         ),
                                       ],
@@ -324,11 +321,11 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if ((partido.torneo ?? '').isNotEmpty)
+                                    if (partido.torneo.isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.only(bottom: 8.0),
                                         child: Text(
-                                          partido.torneo ?? '',
+                                          partido.torneo,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: Color(0xFFD32F2F),
@@ -377,7 +374,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            partido.equipoRival ?? '',
+                                            partido.equipoRival,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.black87,
@@ -395,7 +392,7 @@ class _ResultadosListScreenState extends ConsumerState<ResultadosListScreen> {
                                         const SizedBox(width: 4),
                                         Expanded(
                                           child: Text(
-                                            partido.cancha ?? '',
+                                            partido.cancha,
                                             style: const TextStyle(color: Colors.black54, fontSize: 12),
                                             overflow: TextOverflow.ellipsis,
                                           ),

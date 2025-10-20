@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/player_model.dart';
 import '../../providers/pago_provider.dart';
-import '../../models/pago_model.dart';
 
 const List<String> mesesDelAno = [
   'Enero',

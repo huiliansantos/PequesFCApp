@@ -24,7 +24,7 @@ class GenerarReporteScreen extends StatelessWidget {
             children: [
               pw.Text('Lista de Jugadores', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 16),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Nombre', 'Apellido', 'CI', 'Categoría'],
                 data: jugadores.map((j) => [
                   j['nombres'] ?? '',
@@ -52,6 +52,7 @@ class GenerarReporteScreen extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Categoría: ${entry.key}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  // ignore: deprecated_member_use
                   pw.Table.fromTextArray(
                     headers: ['Nombre', 'Apellido', 'CI'],
                     data: entry.value.map((j) => [
@@ -82,7 +83,7 @@ class GenerarReporteScreen extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Categoría-Equipo: ${entry.key}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Table.fromTextArray(
+                  pw.TableHelper.fromTextArray(
                     headers: ['Nombre', 'Apellido', 'CI'],
                     data: entry.value.map((j) => [
                       j['nombres'] ?? '',
@@ -110,7 +111,7 @@ class GenerarReporteScreen extends StatelessWidget {
             children: [
               pw.Text('Partidos Programados por Fecha', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 16),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Fecha', 'Equipo A', 'Equipo B', 'Lugar'],
                 data: partidos.map((p) => [
                   p['fecha'] ?? '',
@@ -136,7 +137,7 @@ class GenerarReporteScreen extends StatelessWidget {
             children: [
               pw.Text('Resultados por Fecha', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 16),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Fecha', 'Equipo A', 'Equipo B', 'Goles A', 'Goles B'],
                 data: resultados.map((r) => [
                   r['fecha'] ?? '',
@@ -165,7 +166,7 @@ class GenerarReporteScreen extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Equipo: ${entry.key}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Table.fromTextArray(
+                  pw.TableHelper.fromTextArray(
                     headers: ['Fecha', 'Jugador', 'Estado'],
                     data: entry.value.map((a) => [
                       a['fecha'] ?? '',
@@ -195,7 +196,7 @@ class GenerarReporteScreen extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Jugador: ${entry.key}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Table.fromTextArray(
+                  pw.TableHelper.fromTextArray(
                     headers: ['Fecha', 'Equipo', 'Estado'],
                     data: entry.value.map((a) => [
                       a['fecha'] ?? '',
@@ -225,7 +226,7 @@ class GenerarReporteScreen extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Estado: ${entry.key}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Table.fromTextArray(
+                  pw.TableHelper.fromTextArray(
                     headers: ['Jugador', 'Mes', 'Monto', 'Fecha'],
                     data: entry.value.map((p) => [
                       p['jugadorNombre'] ?? '',
@@ -256,7 +257,7 @@ class GenerarReporteScreen extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('Jugador: ${entry.key}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Table.fromTextArray(
+                  pw.TableHelper.fromTextArray(
                     headers: ['Mes', 'Monto', 'Estado', 'Fecha'],
                     data: entry.value.map((p) => [
                       p['mes'] ?? '',
@@ -283,7 +284,7 @@ class GenerarReporteScreen extends StatelessWidget {
             children: [
               pw.Text('Lista de Profesores', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 16),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Nombre', 'Apellido', 'CI', 'Celular', 'Categoría-Equipo'],
                 data: profesores.map((p) => [
                   p['nombre'] ?? '',
@@ -308,7 +309,7 @@ class GenerarReporteScreen extends StatelessWidget {
             children: [
               pw.Text('Lista de Apoderados', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 16),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Nombre', 'Apellido', 'CI', 'Celular'],
                 data: apoderados.map((a) => [
                   a['nombreCompleto'] ?? '',

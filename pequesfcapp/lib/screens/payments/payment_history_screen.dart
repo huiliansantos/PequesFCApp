@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/pago_provider.dart';
-import '../../models/pago_model.dart';
 import 'payment_form.dart';
 
 const List<String> mesesDelAno = [

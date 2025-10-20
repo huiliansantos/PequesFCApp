@@ -7,6 +7,7 @@ class AppTheme {
           seedColor: const Color(0xFFD32F2F),
           primary: const Color(0xFFD32F2F),      // Rojo institucional
           secondary: const Color(0xFFFFEB3B),   // Amarillo institucional
+          // ignore: deprecated_member_use
           background: Colors.white,
           onPrimary: Colors.white,
           onSecondary: Colors.black,

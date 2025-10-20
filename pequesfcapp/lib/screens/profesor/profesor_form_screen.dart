@@ -130,7 +130,7 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                   final dropdownValue = valueExists ? categoriaEquipoId : null;
 
                   return DropdownButtonFormField<String>(
-                    value: dropdownValue,
+                    initialValue: dropdownValue,
                     decoration: const InputDecoration(
                       labelText: 'Equipo asignado',
                       border: OutlineInputBorder(),

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/player_model.dart';
-import '../../models/pago_model.dart';
 import '../../providers/pago_provider.dart';
-import '../../providers/categoria_equipo_provider.dart';
 import 'historial_pagos_hijo_screen.dart';
 class PagosHijoScreen extends ConsumerStatefulWidget {
   final List<PlayerModel> hijos;

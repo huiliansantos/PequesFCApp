@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../providers/asistencia_provider.dart';
 import '../asistencias/registro_asistencia_screen.dart';
 import '../asistencias/ver_lista_asistencia_screen.dart';
 

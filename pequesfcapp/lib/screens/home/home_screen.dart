@@ -10,7 +10,6 @@ import '../matches/match_schedule_screen.dart';
 import '../results/resultado_form_screen.dart';
 import '../login/login_screen.dart';
 import '../matches/match_form_screen.dart';
-import '../asistencias/registro_asistencia_screen.dart';
 import '../asistencias/reporte_asistencia_screen.dart';
 import '../profesor/profesor_list_screen.dart';
 import '../asistencias/categoria_list_asistencia_screen.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/categoria_equipo_provider.dart';
-import '../../models/categoria_equipo_model.dart';
 import 'registro_asistencia_screen.dart';
 import 'ver_lista_asistencia_screen.dart'; // Debes crear esta pantalla
 

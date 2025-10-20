@@ -157,7 +157,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                     );
                   }).toList();
                   return DropdownButtonFormField<String>(
-                    value: categoriaEquipoId,
+                    initialValue: categoriaEquipoId,
                     decoration: const InputDecoration(
                       labelText: 'Categoría y Equipo',
                       border: OutlineInputBorder(),
@@ -198,7 +198,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                 subtitle: horaController.text.isEmpty ? const Text('Obligatorio') : null,
               ),
               DropdownButtonFormField<String>(
-                value: torneo,
+                initialValue: torneo,
                 decoration: const InputDecoration(labelText: 'Torneo'),
                 items: torneos.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (value) => setState(() => torneo = value),

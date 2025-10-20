@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/resultado_model.dart';
 import '../../widgets/gradient_button.dart';
-import '../../models/match_model.dart';
 import '../../providers/match_provider.dart';
 import '../../providers/resultado_provider.dart';
 
@@ -96,7 +95,7 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
                 return ListView(
                   children: [
                     DropdownButtonFormField<String>(
-                      value: dropdownValue,
+                      initialValue: dropdownValue,
                       decoration: const InputDecoration(labelText: 'Partido'),
                       items: partidosDisponibles.map((p) => DropdownMenuItem(
                         value: p.id,

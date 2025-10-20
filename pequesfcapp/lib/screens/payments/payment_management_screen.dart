@@ -3,12 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/pago_provider.dart';
 import '../../providers/player_provider.dart';
-import '../../models/pago_model.dart';
-import '../../models/player_model.dart';
-import 'payment_form.dart';
 import 'payment_history_screen.dart';
 import '../../providers/categoria_equipo_provider.dart';
-import '../../models/categoria_equipo_model.dart';
+
 
 const List<String> mesesPendientesPorDefecto = [
   'Enero',

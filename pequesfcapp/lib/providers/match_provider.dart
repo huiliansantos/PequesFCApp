@@ -19,7 +19,7 @@ final partidosPorCategoriaEquipoProvider = StreamProvider.family<List<MatchModel
     .collection('partidos')
     .where('categoriaEquipoId', isEqualTo: categoriaEquipoId)
     .snapshots()
-    .map((snapshot) => snapshot.docs.map((doc) => MatchModel.fromMap(doc.data() as Map<String, dynamic>)).toList());
+    .map((snapshot) => snapshot.docs.map((doc) => MatchModel.fromMap(doc.data())).toList());
 });
 
 final partidosProviderAll = StreamProvider<List<MatchModel>>((ref) {
@@ -27,7 +27,7 @@ final partidosProviderAll = StreamProvider<List<MatchModel>>((ref) {
       .collection('partidos')
       .snapshots()
       .map((snapshot) => snapshot.docs
-          .map((doc) => MatchModel.fromMap(doc.data() as Map<String, dynamic>))
+          .map((doc) => MatchModel.fromMap(doc.data()))
           .toList());
 });
 
@@ -41,6 +41,6 @@ final partidosPorCategoriasProvider = StreamProvider.family<List<MatchModel>, Li
       .where('categoriaEquipoId', whereIn: categoriasIds)
       .snapshots()
       .map((snapshot) => snapshot.docs
-          .map((doc) => MatchModel.fromMap(doc.data() as Map<String, dynamic>))
+          .map((doc) => MatchModel.fromMap(doc.data()))
           .toList());
 });

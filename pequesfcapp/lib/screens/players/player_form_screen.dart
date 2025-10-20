@@ -7,7 +7,6 @@ import '../../widgets/gradient_button.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
 import '../../models/categoria_equipo_model.dart';
-import '../../repositories/categoria_equipo_repository.dart';
 
 class PlayerFormScreen extends ConsumerStatefulWidget {
   final PlayerModel? player;
@@ -279,7 +278,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
                     : null,
               ),
               DropdownButtonFormField<String>(
-                value: genero,
+                initialValue: genero,
                 items: ['Masculino', 'Femenino']
                     .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                     .toList(),
@@ -298,7 +297,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: nacionalidad,
+                initialValue: nacionalidad,
                 decoration: const InputDecoration(labelText: 'Nacionalidad'),
                 items: nacionalidades
                     .map((n) => DropdownMenuItem(value: n, child: Text(n)))
@@ -312,7 +311,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
               ),
               if (nacionalidad == 'Boliviana')
                 DropdownButtonFormField<String>(
-                  value: departamentoBolivia,
+                  initialValue: departamentoBolivia,
                   decoration: const InputDecoration(labelText: 'Departamento'),
                   items: departamentosBolivia
                       .map((d) => DropdownMenuItem(value: d, child: Text(d)))
@@ -353,7 +352,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
 
                   return DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Categoría-Equipo'),
-                    value: listaFiltrada.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
+                    initialValue: listaFiltrada.any((item) => item.id == categoriaEquipoId) ? categoriaEquipoId : null,
                     items: [
                       const DropdownMenuItem(
                         value: 'nueva_categoria_equipo',

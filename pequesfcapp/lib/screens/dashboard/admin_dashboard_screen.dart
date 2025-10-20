@@ -29,6 +29,7 @@ class AdminDashboardScreen extends ConsumerWidget {
               children: [
                 Container(
                   decoration: BoxDecoration(
+                    // ignore: deprecated_member_use
                     color: color.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/player_provider.dart';
 import '../players/player_form_screen.dart';
 import '../../providers/guardian_provider.dart';
-import '../../models/player_model.dart';
 import '../../models/guardian_model.dart';
 import 'player_detail_screen.dart';
 import '../../providers/categoria_equipo_provider.dart';

@@ -61,6 +61,7 @@ class _AsignarApoderadoScreenState extends ConsumerState<AsignarApoderadoScreen>
                     labelText: 'Buscar apoderado',
                     border: OutlineInputBorder(),
                   ),
+                  // ignore: deprecated_member_use
                   value: guardianIdSeleccionado,
                   items: [
                     ...guardians.map((g) => DropdownMenuItem(

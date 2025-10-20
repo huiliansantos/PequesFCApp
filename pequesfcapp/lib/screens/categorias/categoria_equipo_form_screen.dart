@@ -92,6 +92,7 @@ class _CategoriaEquipoFormScreenState
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
                         labelText: 'Categoría (año de nacimiento)'),
+                    // ignore: deprecated_member_use
                     value: categoriaSeleccionada,
                     items: categorias
                         .map((cat) =>
@@ -126,6 +127,7 @@ class _CategoriaEquipoFormScreenState
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Equipo'),
+                    // ignore: deprecated_member_use
                     value: equipoSeleccionado,
                     items: equipos
                         .map((eq) =>

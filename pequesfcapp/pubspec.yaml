@@ -44,9 +44,7 @@ flutter:
     - assets/profesor.png
     - assets/apoderado.png
 
-
-
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/peques.png"

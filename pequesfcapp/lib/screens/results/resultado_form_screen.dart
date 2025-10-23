@@ -8,8 +8,9 @@ import '../../providers/resultado_provider.dart';
 
 class ResultadoFormScreen extends ConsumerStatefulWidget {
   final ResultadoModel? resultado; // Para edición
+  final String? partidoId; // <-- Nuevo parámetro para selección automática
 
-  const ResultadoFormScreen({Key? key, this.resultado}) : super(key: key);
+  const ResultadoFormScreen({Key? key, this.resultado, this.partidoId}) : super(key: key);
 
   @override
   ConsumerState<ResultadoFormScreen> createState() => _ResultadoFormScreenState();
@@ -26,7 +27,7 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
   void initState() {
     super.initState();
     observacionesController = TextEditingController(text: widget.resultado?.observaciones ?? '');
-    partidoId = widget.resultado?.partidoId;
+    partidoId = widget.resultado?.partidoId ?? widget.partidoId; // <-- Selecciona el partidoId recibido si existe
     golesFavor = widget.resultado?.golesFavor ?? 0;
     golesContra = widget.resultado?.golesContra ?? 0;
   }
@@ -71,7 +72,18 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
     final resultadosAsync = ref.watch(resultadosStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.resultado == null ? 'Registrar Resultado' : 'Editar Resultado')),
+      appBar: AppBar(
+        // degradadp de la app utilizadad 
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Text(widget.resultado == null ? 'Registrar Resultado' : 'Editar Resultado')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -95,7 +107,7 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
                 return ListView(
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: dropdownValue,
+                      value: dropdownValue,
                       decoration: const InputDecoration(labelText: 'Partido'),
                       items: partidosDisponibles.map((p) => DropdownMenuItem(
                         value: p.id,
@@ -178,7 +190,6 @@ class _ResultadoFormScreenState extends ConsumerState<ResultadoFormScreen> {
                       onPressed: _saveResultado,
                       child: Text(widget.resultado == null ? 'Guardar Resultado' : 'Actualizar Resultado'),
                     ),
-                   
                   ],
                 );
               },

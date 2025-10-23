@@ -25,7 +25,7 @@ class _CategoriaListAsistenciaScreenState extends ConsumerState<CategoriaListAsi
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'Buscar categoría o equipo',
+                hintText: 'Buscar categoría o equipo...',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -41,7 +41,19 @@ class _CategoriaListAsistenciaScreenState extends ConsumerState<CategoriaListAsi
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (lista) {
-                final filtrados = lista.where((item) =>
+                // Ordenar por año descendente (más actual primero)
+                final ordenados = [...lista]..sort((a, b) {
+                  // Si tienes un campo año, úsalo. Si no, intenta extraerlo de la categoría.
+                  // Suponiendo que el campo 'categoria' contiene el año, por ejemplo: "2024 - Equipo A"
+                  int getAnio(dynamic item) {
+                    final exp = RegExp(r'\d{4}');
+                    final match = exp.firstMatch(item.categoria);
+                    return match != null ? int.tryParse(match.group(0)!) ?? 0 : 0;
+                  }
+                  return getAnio(b).compareTo(getAnio(a));
+                });
+
+                final filtrados = ordenados.where((item) =>
                   item.categoria.toLowerCase().contains(busqueda) ||
                   item.equipo.toLowerCase().contains(busqueda)
                 ).toList();

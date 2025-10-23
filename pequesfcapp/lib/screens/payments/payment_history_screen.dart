@@ -4,18 +4,8 @@ import '../../providers/pago_provider.dart';
 import 'payment_form.dart';
 
 const List<String> mesesDelAno = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre'
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
@@ -29,8 +19,7 @@ class PaymentHistoryScreen extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<PaymentHistoryScreen> createState() =>
-      _PaymentHistoryScreenState();
+  ConsumerState<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
 }
 
 class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
@@ -42,7 +31,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    anioSeleccionado = '2025'; // Gestión por defecto al abrir la pantalla
+    anioSeleccionado = DateTime.now().year.toString();
   }
 
   @override
@@ -66,107 +55,200 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             const Text('Historial de Pagos'),
             Text(
               widget.jugadorNombre,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.white70),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
             ),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: anioSeleccionado,
-                    hint: const Text('Seleccionar año'),
-                    items: [
-                      for (var i = 2021; i <= DateTime.now().year; i++)
-                        DropdownMenuItem(
-                            value: i.toString(), child: Text(i.toString())),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        anioSeleccionado = value;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: estadoSeleccionado,
-                    hint: const Text('Seleccionar estado'),
-                    items: const [
-                      DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                      DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
-                      DropdownMenuItem(
-                          value: 'pendiente', child: Text('Pendientes')),
-                      DropdownMenuItem(
-                          value: 'atrasado', child: Text('Atrasados')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        estadoSeleccionado = value ?? 'todos';
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // ESTADO GENERAL DE LA GESTIÓN
-          pagosAsync.when(
-            loading: () => const SizedBox(height: 16),
-            error: (e, _) => const SizedBox(height: 16),
-            data: (pagos) {
-              final gestion = anioSeleccionado != null
-                  ? int.tryParse(anioSeleccionado!) ?? gestionActual
-                  : gestionActual;
-              final pagosGestion =
-                  pagos.where((p) => p.anio == gestion).toList();
+      body: pagosAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (pagos) {
+          final gestion = anioSeleccionado != null
+              ? int.tryParse(anioSeleccionado!) ?? gestionActual
+              : gestionActual;
+          final pagosGestion = pagos.where((p) => p.anio == gestion).toList();
 
-              int ultimoMesPagado = -1;
-              for (var pago in pagosGestion) {
-                if (pago.estado == 'pagado') {
-                  int mesIndex = mesesDelAno.indexOf(pago.mes);
-                  if (mesIndex > ultimoMesPagado) {
-                    ultimoMesPagado = mesIndex;
-                  }
-                }
+          int ultimoMesPagado = -1;
+          for (var pago in pagosGestion) {
+            if (pago.estado == 'pagado') {
+              int mesIndex = mesesDelAno.indexOf(pago.mes);
+              if (mesIndex > ultimoMesPagado) {
+                ultimoMesPagado = mesIndex;
               }
-              int mesActual = (gestion == DateTime.now().year)
-                  ? DateTime.now().month - 1
-                  : 11;
+            }
+          }
+          int mesActual = (gestion == DateTime.now().year)
+              ? DateTime.now().month - 1
+              : 11;
 
-              int mesesDeuda = mesActual - ultimoMesPagado;
+          int mesesDeuda = mesActual - ultimoMesPagado;
 
-              Color estadoColor;
-              String estadoTexto;
+          Color estadoColor;
+          String estadoTexto;
 
-              if (pagosGestion.isEmpty) {
-                estadoColor = Colors.grey;
-                estadoTexto = 'Sin registro';
-              } else if (ultimoMesPagado >= mesActual) {
-                estadoColor = Colors.green;
-                estadoTexto = 'Pagado';
-              } else if (mesesDeuda > 3) {
-                estadoColor = Colors.red;
-                estadoTexto = 'Atrasado';
-              } else {
-                estadoColor = Colors.orange;
-                estadoTexto = 'Pendiente';
-              }
+          if (pagosGestion.isEmpty) {
+            estadoColor = Colors.grey;
+            estadoTexto = 'Sin registro';
+          } else if (ultimoMesPagado >= mesActual) {
+            estadoColor = Colors.green;
+            estadoTexto = 'Pagado';
+          } else if (mesesDeuda > 3) {
+            estadoColor = Colors.red;
+            estadoTexto = 'Atrasado';
+          } else {
+            estadoColor = Colors.orange;
+            estadoTexto = 'Pendiente';
+          }
 
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          // Filtros
+          final pagosFiltradosPorAnio = pagos.where((p) => p.anio == gestion).toList();
+          final pagosFiltrados = estadoSeleccionado == 'todos'
+              ? pagosFiltradosPorAnio
+              : pagosFiltradosPorAnio.where((p) => p.estado == estadoSeleccionado).toList();
+
+          pagosFiltrados.sort((a, b) {
+            final mesA = mesesDelAno.indexOf(a.mes);
+            final mesB = mesesDelAno.indexOf(b.mes);
+            return mesA.compareTo(mesB);
+          });
+
+          final mesesPagados = pagosFiltrados.map((p) => p.mes).toSet();
+          final items = <Widget>[];
+
+          for (final pago in pagosFiltrados) {
+            Color estadoColorPago;
+            switch (pago.estado) {
+              case 'pagado':
+                estadoColorPago = Colors.green;
+                break;
+              case 'pendiente':
+                estadoColorPago = Colors.orange;
+                break;
+              case 'atrasado':
+                estadoColorPago = Colors.red;
+                break;
+              default:
+                estadoColorPago = Colors.grey;
+            }
+            items.add(Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: estadoColorPago,
+                  child: const Icon(Icons.attach_money, color: Colors.white),
+                ),
+                title: Text('${pago.mes} -  ${pago.monto.toStringAsFixed(2)} Bs.'),
+                subtitle: Text(
+                  'Gestión: ${pago.anio}\n'
+                  'Fecha: ${pago.fechaPago.day}/${pago.fechaPago.month}/${pago.fechaPago.year}\n'
+                  'Observación: ${pago.observacion ?? "-"}',
+                ),
+                trailing: Chip(
+                  label: Text(
+                    pago.estado.toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: estadoColorPago,
+                ),
+                onTap: pago.estado != 'pagado'
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaymentForm(
+                              jugadorId: widget.jugadorId,
+                              jugadorNombre: widget.jugadorNombre,
+                              mesInicial: pago.mes,
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+              ),
+            ));
+          }
+
+          // Mostrar meses pendientes por defecto (solo si no hay pago registrado para ese mes)
+          for (final mes in mesesDelAno) {
+            if (!mesesPagados.contains(mes)) {
+              items.add(Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.orange,
+                    child: Icon(Icons.attach_money, color: Colors.white),
+                  ),
+                  title: Text('$mes - Bs. 0.00'),
+                  subtitle: const Text('Pendiente de pago'),
+                  trailing: const Chip(
+                    label: Text('PENDIENTE', style: TextStyle(color: Colors.white)),
+                    backgroundColor: Colors.orange,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PaymentForm(
+                          jugadorId: widget.jugadorId,
+                          jugadorNombre: widget.jugadorNombre,
+                          mesInicial: mes,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ));
+            }
+          }
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: anioSeleccionado,
+                        hint: const Text('Seleccionar año'),
+                        items: [
+                          for (var i = 2021; i <= DateTime.now().year; i++)
+                            DropdownMenuItem(
+                                value: i.toString(), child: Text(i.toString())),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            anioSeleccionado = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: estadoSeleccionado,
+                        hint: const Text('Seleccionar estado'),
+                        items: const [
+                          DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                          DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
+                          DropdownMenuItem(value: 'pendiente', child: Text('Pendientes')),
+                          DropdownMenuItem(value: 'atrasado', child: Text('Atrasados')),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            estadoSeleccionado = value ?? 'todos';
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
                     const Text(
@@ -190,134 +272,15 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-          Expanded(
-            child: pagosAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (pagos) {
-                final gestion = anioSeleccionado != null
-                    ? int.tryParse(anioSeleccionado!) ?? gestionActual
-                    : gestionActual;
-
-                // Primero filtra por gestión
-                final pagosFiltradosPorAnio = pagos.where((p) => p.anio == gestion).toList();
-
-                // Luego filtra por estado
-                final pagosFiltrados = estadoSeleccionado == 'todos'
-                    ? pagosFiltradosPorAnio
-                    : pagosFiltradosPorAnio.where((p) => p.estado == estadoSeleccionado).toList();
-
-                pagosFiltrados.sort((a, b) {
-                  final mesA = mesesDelAno.indexOf(a.mes);
-                  final mesB = mesesDelAno.indexOf(b.mes);
-                  return mesA.compareTo(mesB);
-                });
-
-                final mesesPagados = pagosFiltrados.map((p) => p.mes).toSet();
-                final items = <Widget>[];
-
-                for (final pago in pagosFiltrados) {
-                  Color estadoColor;
-                  switch (pago.estado) {
-                    case 'pagado':
-                      estadoColor = Colors.green;
-                      break;
-                    case 'pendiente':
-                      estadoColor = Colors.orange;
-                      break;
-                    case 'atrasado':
-                      estadoColor = Colors.red;
-                      break;
-                    default:
-                      estadoColor = Colors.grey;
-                  }
-                  items.add(Card(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: estadoColor,
-                        child:
-                            const Icon(Icons.attach_money, color: Colors.white),
-                      ),
-                      title: Text(
-                          '${pago.mes} -  ${pago.monto.toStringAsFixed(2)} Bs.'),
-                      subtitle: Text(
-                        'Gestión: ${pago.anio}\n'
-                        'Fecha: ${pago.fechaPago.day}/${pago.fechaPago.month}/${pago.fechaPago.year}\n'
-                        'Observación: ${pago.observacion ?? "-"}',
-                      ),
-                      trailing: Chip(
-                        label: Text(
-                          pago.estado.toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        backgroundColor: estadoColor,
-                      ),
-                      onTap: pago.estado != 'pagado'
-                          ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PaymentForm(
-                                    jugadorId: widget.jugadorId,
-                                    jugadorNombre: widget.jugadorNombre,
-                                    mesInicial: pago.mes,
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
-                    ),
-                  ));
-                }
-
-                // Mostrar meses pendientes por defecto (solo si no hay pago registrado para ese mes)
-                for (final mes in mesesDelAno) {
-                  if (!mesesPagados.contains(mes)) {
-                    items.add(Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.orange,
-                          child: Icon(Icons.attach_money, color: Colors.white),
-                        ),
-                        title: Text('$mes - Bs. 0.00'),
-                        subtitle: const Text('Pendiente de pago'),
-                        trailing: const Chip(
-                          label: Text('PENDIENTE',
-                              style: TextStyle(color: Colors.white)),
-                          backgroundColor: Colors.orange,
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PaymentForm(
-                                jugadorId: widget.jugadorId,
-                                jugadorNombre: widget.jugadorNombre,
-                                mesInicial: mes,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ));
-                  }
-                }
-
-                if (items.isEmpty) {
-                  return const Center(child: Text('No hay pagos registrados.'));
-                }
-                return ListView(children: items);
-              },
-            ),
-          ),
-        ],
+              ),
+              Expanded(
+                child: items.isEmpty
+                    ? const Center(child: Text('No hay pagos registrados.'))
+                    : ListView(children: items),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

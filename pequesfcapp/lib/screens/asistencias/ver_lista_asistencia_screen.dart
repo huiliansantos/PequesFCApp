@@ -152,9 +152,7 @@ class _VerListaAsistenciaScreenState
                                   const Icon(Icons.cancel, color: Colors.red),
                                 const SizedBox(width: 8),
                                 Text(
-                                  asistencia.horaRegistro != null
-                                      ? '${asistencia.horaRegistro.hour.toString().padLeft(2, '0')}:${asistencia.horaRegistro.minute.toString().padLeft(2, '0')}'
-                                      : '',
+                                  '${asistencia.horaRegistro.hour.toString().padLeft(2, '0')}:${asistencia.horaRegistro.minute.toString().padLeft(2, '0')}',
                                   style: const TextStyle(fontSize: 12),
                                 ),
                               ],

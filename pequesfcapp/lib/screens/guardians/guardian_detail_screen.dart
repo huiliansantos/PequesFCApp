@@ -106,7 +106,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                         Icons.lock,
                         Colors.red,
                         'Contraseña:',
-                        _showPassword ? (guardian?.contrasena ?? '') : '*' * (guardian?.contrasena?.length ?? 0),
+                        _showPassword ? (guardian?.contrasena ?? '') : '*' * (guardian?.contrasena.length ?? 0),
                         trailing: IconButton(
                           icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
                           onPressed: () {

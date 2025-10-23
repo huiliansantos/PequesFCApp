@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart'; // Para formatear fechas si lo deseas
 import '../../models/match_model.dart';
 import '../../widgets/gradient_button.dart';
 import '../../providers/match_provider.dart';
+import '../torneos/torneo_form_screen.dart';
 
 class MatchFormScreen extends ConsumerStatefulWidget {
   final MatchModel? match;
@@ -25,6 +27,8 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   String? categoriaEquipoId;
   String? equipoRivalId;
   TimeOfDay? horaSeleccionada;
+  String? torneoId;
+  List<Map<String, dynamic>> torneosFirestore = [];
   //generar nombre de categoria a partir del categoriaEquipoId
   
 
@@ -39,6 +43,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
     fecha = widget.match?.fecha;
     torneo = widget.match?.torneo;
     categoriaEquipoId = widget.match?.categoriaEquipoId;
+    _loadTorneos();
     
     if (widget.match?.hora != null && widget.match!.hora.isNotEmpty) {
       final parts = widget.match!.hora.split(':');
@@ -49,6 +54,21 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
         );
       }
     }
+  }
+
+  Future<void> _loadTorneos() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('torneos')
+        .orderBy('fecha', descending: true)
+        .get();
+    setState(() {
+      torneosFirestore = snapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                'nombre': doc['nombre'] ?? '',
+              })
+          .toList();
+    });
   }
 
   @override
@@ -121,7 +141,6 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.match == null ? 'Registrar Partido' : 'Modificar Partido'),
-        //degradado de la app
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -130,7 +149,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
               end: Alignment.bottomRight,
             ),
           ),
-      ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -138,7 +157,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // Dropdown de categoría/equipo desde Firestore
+              // Dropdown de categoría/equipo desde Firestore, ordenado por año descendente
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('categoria_equipo').snapshots(),
                 builder: (context, snapshot) {
@@ -146,7 +165,19 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                     return const CircularProgressIndicator();
                   }
                   final docs = snapshot.data!.docs;
-                  final items = docs.map((doc) {
+                  // Ordenar por año descendente si el campo 'categoria' contiene el año
+                  List<QueryDocumentSnapshot> ordenados = [...docs];
+                  ordenados.sort((a, b) {
+                    int getAnio(dynamic doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final exp = RegExp(r'\d{4}');
+                      final match = exp.firstMatch(data['categoria'] ?? '');
+                      return match != null ? int.tryParse(match.group(0)!) ?? 0 : 0;
+                    }
+                    return getAnio(b).compareTo(getAnio(a));
+                  });
+
+                  final items = ordenados.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final id = (data['id'] ?? doc.id).toString();
                     final categoria = data['categoria'] ?? '';
@@ -157,7 +188,7 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                     );
                   }).toList();
                   return DropdownButtonFormField<String>(
-                    initialValue: categoriaEquipoId,
+                    value: categoriaEquipoId,
                     decoration: const InputDecoration(
                       labelText: 'Categoría y Equipo',
                       border: OutlineInputBorder(),
@@ -176,18 +207,20 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
               TextFormField(
                 controller: equipoRivalController,
                 decoration: const InputDecoration(labelText: 'Equipo Rival'),
-                validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                validator: (v) => v == null || v.trim().isEmpty ? 'Campo obligatorio' : null,
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: canchaController,
                 decoration: const InputDecoration(labelText: 'Cancha'),
-                validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                validator: (v) => v == null || v.trim().isEmpty ? 'Campo obligatorio' : null,
               ),
+              const SizedBox(height: 16),
               ListTile(
                 title: Text(fecha == null ? 'Fecha' : 'Fecha: $dateFormat'),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () => _selectDate(context),
-                subtitle: fecha == null ? const Text('Obligatorio') : null,
+                subtitle: fecha == null ? const Text('Obligatorio', style: TextStyle(color: Colors.red)) : null,
               ),
               ListTile(
                 title: Text(horaController.text.isEmpty
@@ -195,21 +228,68 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
                     : 'Hora: ${horaController.text}'),
                 trailing: const Icon(Icons.access_time),
                 onTap: () => _selectTime(context),
-                subtitle: horaController.text.isEmpty ? const Text('Obligatorio') : null,
+                subtitle: horaController.text.isEmpty ? const Text('Obligatorio', style: TextStyle(color: Colors.red)) : null,
               ),
               DropdownButtonFormField<String>(
-                initialValue: torneo,
+                value: torneoId,
                 decoration: const InputDecoration(labelText: 'Torneo'),
-                items: torneos.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                onChanged: (value) => setState(() => torneo = value),
+                items: [
+                  ...torneosFirestore.map((t) => DropdownMenuItem(
+                        value: t['id'],
+                        child: Text(t['nombre']),
+                      )),
+                  const DropdownMenuItem(
+                    value: 'nuevo',
+                    child: Text('Registrar nuevo torneo...'),
+                  ),
+                ],
+                onChanged: (value) async {
+                  if (value == 'nuevo') {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TorneoFormScreen(),
+                      ),
+                    );
+                    await _loadTorneos();
+                    if (result is String) {
+                      setState(() {
+                        torneoId = result;
+                        torneo = torneosFirestore.firstWhere(
+                          (t) => t['id'] == result,
+                          orElse: () => {'nombre': ''},
+                        )['nombre'];
+                      });
+                    }
+                  } else {
+                    setState(() {
+                      torneoId = value;
+                      torneo = torneosFirestore.firstWhere(
+                        (t) => t['id'] == value,
+                        orElse: () => {'nombre': ''},
+                      )['nombre'];
+                    });
+                  }
+                },
                 validator: (v) => v == null ? 'Selecciona un torneo' : null,
               ),
               const SizedBox(height: 20),
               GradientButton(
-                onPressed: _saveMatch,
+                onPressed: () {
+                  if (_formKey.currentState!.validate() &&
+                      fecha != null &&
+                      horaController.text.isNotEmpty &&
+                      torneo != null &&
+                      categoriaEquipoId != null) {
+                    _saveMatch();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Completa todos los campos obligatorios')),
+                    );
+                  }
+                },
                 child: Text(widget.match == null ? 'Guardar' : 'Actualizar'),
               ),
-            
             ],
           ),
         ),

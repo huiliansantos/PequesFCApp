@@ -161,7 +161,7 @@ class _ProfesorDetailContentState extends State<_ProfesorDetailContent> {
 
   @override
   Widget build(BuildContext context) {
-    final contrasena = widget.profesor.contrasena ?? '';
+    final contrasena = widget.profesor.contrasena ;
     final contrasenaOculta = '*' * contrasena.length;
 
     return Column(

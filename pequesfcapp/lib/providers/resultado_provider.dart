@@ -11,8 +11,9 @@ final resultadosStreamProvider = StreamProvider<List<ResultadoModel>>((ref) {
 
 // Set de partidoIds que tienen resultado (útil para filtrar UI)
 final resultadosIdsProvider = StreamProvider<Set<String>>((ref) {
+  // ignore: deprecated_member_use
   return ref.watch(resultadosStreamProvider.stream).map((list) {
-    return list.map((r) => (r.partidoId ?? '').trim()).where((s) => s.isNotEmpty).toSet();
+    return list.map((r) => (r.partidoId).trim()).where((s) => s.isNotEmpty).toSet();
   });
 });
 

@@ -6,7 +6,6 @@ import '../../providers/player_provider.dart';
 import 'payment_history_screen.dart';
 import '../../providers/categoria_equipo_provider.dart';
 
-
 const List<String> mesesPendientesPorDefecto = [
   'Enero',
   'Febrero',
@@ -22,6 +21,23 @@ const List<String> mesesPendientesPorDefecto = [
   'Diciembre'
 ];
 
+// OPTIMIZACIÓN: Provider para obtener el mapa de categoriaEquipoId -> nombre
+final categoriaEquiposMapProvider = FutureProvider<Map<String, String>>((ref) async {
+  final query = await FirebaseFirestore.instance.collection('categoria_equipo').get();
+  final map = <String, String>{};
+  for (final doc in query.docs) {
+    final data = doc.data();
+    final categoria = (data['categoria'] ?? '').toString();
+    final equipo = (data['equipo'] ?? '').toString();
+    final label = [
+      if (categoria.isNotEmpty) categoria,
+      if (equipo.isNotEmpty) equipo,
+    ].join(' - ');
+    map[doc.id] = label.isNotEmpty ? label : doc.id;
+  }
+  return map;
+});
+
 class PaymentManagementScreen extends ConsumerStatefulWidget {
   const PaymentManagementScreen({Key? key}) : super(key: key);
 
@@ -36,11 +52,12 @@ class _PaymentManagementScreenState
   String? categoriaSeleccionada;
   String estadoSeleccionado = 'todos';
 
-  int gestionActual = 2025; // Gestión por defecto para el estado general
+  int gestionActual = DateTime.now().year;
 
   @override
   Widget build(BuildContext context) {
     final jugadoresAsync = ref.watch(playersProvider);
+    final categoriasMapAsync = ref.watch(categoriaEquiposMapProvider);
 
     return Scaffold(
       body: Column(
@@ -65,38 +82,35 @@ class _PaymentManagementScreenState
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButton<String>(
-                        value: categoriaSeleccionada,
-                        hint: const Text('Categoría'),
-                        isExpanded: true,
-                        items: [
-                          const DropdownMenuItem(
-                              value: null, child: Text('Todas las categorías')),
-                          ...ref
-                              .watch(categoriasEquiposProvider)
-                              .maybeWhen(
-                                data: (categorias) {
-                                  final ordenadas = [...categorias]
-                                    ..sort((a, b) {
-                                      final catComp = a.categoria.compareTo(b.categoria);
-                                      if (catComp != 0) return catComp;
-                                      return a.equipo.compareTo(b.equipo);
-                                    });
-                                  return ordenadas
-                                      .map((ce) => DropdownMenuItem(
-                                            value: ce.id,
-                                            child: Text('${ce.categoria} - ${ce.equipo}'),
-                                          ))
-                                      .toList();
-                                },
-                                orElse: () => <DropdownMenuItem<String>>[],
-                              )
-                              .toList(),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            categoriaSeleccionada = value;
-                          });
+                      child: categoriasMapAsync.when(
+                        loading: () => const SizedBox(
+                            height: 48,
+                            child: Center(child: CircularProgressIndicator())),
+                        error: (e, _) => const SizedBox(
+                            height: 48,
+                            child: Center(child: Text('Error categorías'))),
+                        data: (idToLabel) {
+                          final items = [
+                            const DropdownMenuItem<String>(
+                                value: '', child: Text('Todas las categorías')),
+                            ...idToLabel.entries
+                                .map((e) => DropdownMenuItem<String>(
+                                      value: e.key,
+                                      child: Text(e.value),
+                                    ))
+                                .toList(),
+                          ];
+                          return DropdownButton<String>(
+                            value: categoriaSeleccionada,
+                            hint: const Text('Categoría'),
+                            isExpanded: true,
+                            items: items,
+                            onChanged: (value) {
+                              setState(() {
+                                categoriaSeleccionada = value;
+                              });
+                            },
+                          );
                         },
                       ),
                     ),
@@ -127,122 +141,113 @@ class _PaymentManagementScreenState
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (jugadores) {
-                final jugadoresFiltrados = jugadores.where((j) {
-                  final coincideBusqueda =
-                      j.nombres.toLowerCase().contains(busqueda) ||
-                          j.apellido.toLowerCase().contains(busqueda);
-                  final coincideCategoria = categoriaSeleccionada == null ||
-                      j.categoriaEquipoId == categoriaSeleccionada;
-                  return coincideBusqueda && coincideCategoria;
-                }).toList();
+                return categoriasMapAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error categorías')),
+                  data: (idToLabel) {
+                    final jugadoresFiltrados = jugadores.where((j) {
+                      final coincideBusqueda =
+                          j.nombres.toLowerCase().contains(busqueda) ||
+                              j.apellido.toLowerCase().contains(busqueda);
+                      final coincideCategoria = categoriaSeleccionada == null ||
+                          j.categoriaEquipoId == categoriaSeleccionada;
+                      return coincideBusqueda && coincideCategoria;
+                    }).toList();
 
-                if (jugadoresFiltrados.isEmpty) {
-                  return const Center(
-                      child: Text('No hay jugadores encontrados.'));
-                }
+                    if (jugadoresFiltrados.isEmpty) {
+                      return const Center(
+                          child: Text('No hay jugadores encontrados.'));
+                    }
 
-                return ListView.builder(
-                  itemCount: jugadoresFiltrados.length,
-                  itemBuilder: (context, index) {
-                    final jugador = jugadoresFiltrados[index];
-                    final pagosAsync =
-                        ref.watch(pagosPorJugadorProvider(jugador.id));
-                    return pagosAsync.when(
-                      loading: () =>
-                          const ListTile(title: Text('Cargando pagos...')),
-                      error: (e, _) => ListTile(title: Text('Error: $e')),
-                      data: (pagos) {
-                        // Filtra pagos por estado si corresponde
-                        final pagosFiltrados = estadoSeleccionado == 'todos'
-                            ? pagos
-                            : pagos.where((p) => p.estado == estadoSeleccionado).toList();
+                    return ListView.builder(
+                      itemCount: jugadoresFiltrados.length,
+                      itemBuilder: (context, index) {
+                        final jugador = jugadoresFiltrados[index];
+                        final pagosAsync =
+                            ref.watch(pagosPorJugadorProvider(jugador.id));
+                        return pagosAsync.when(
+                          loading: () =>
+                              const ListTile(title: Text('Cargando pagos...')),
+                          error: (e, _) => ListTile(title: Text('Error: $e')),
+                          data: (pagos) {
+                            final pagosFiltrados = estadoSeleccionado == 'todos'
+                                ? pagos
+                                : pagos
+                                    .where((p) => p.estado == estadoSeleccionado)
+                                    .toList();
 
-                        // Solo pagos de la gestión actual (2025)
-                        final pagosGestion = pagos.where((p) => p.anio == gestionActual).toList();
+                            final pagosGestion = pagos
+                                .where((p) => p.anio == gestionActual)
+                                .toList();
 
-                        // Obtén el índice del último mes pagado
-                        int ultimoMesPagado = -1;
-                        for (var pago in pagosGestion) {
-                          if (pago.estado == 'pagado') {
-                            int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
-                            if (mesIndex > ultimoMesPagado) {
-                              ultimoMesPagado = mesIndex;
+                            int ultimoMesPagado = -1;
+                            for (var pago in pagosGestion) {
+                              if (pago.estado == 'pagado') {
+                                int mesIndex = mesesPendientesPorDefecto
+                                    .indexOf(pago.mes);
+                                if (mesIndex > ultimoMesPagado) {
+                                  ultimoMesPagado = mesIndex;
+                                }
+                              }
                             }
-                          }
-                        }
 
-                        // Mes actual (0 = Enero, 1 = Febrero, ...)
-                        int mesActual = DateTime.now().month - 1;
+                            int mesActual = DateTime.now().month - 1;
+                            int mesesDeuda = mesActual - ultimoMesPagado;
 
-                        // Calcula cuántos meses debe hasta el mes actual
-                        int mesesDeuda = mesActual - ultimoMesPagado;
+                            Color estadoColor;
+                            String estadoTexto;
 
-                        // Estado general y color
-                        Color estadoColor;
-                        String estadoTexto;
+                            if (pagos.isEmpty) {
+                              estadoColor = Colors.grey;
+                              estadoTexto = 'Sin registro';
+                            } else if (ultimoMesPagado >= mesActual) {
+                              estadoColor = Colors.green;
+                              estadoTexto = 'Pagado';
+                            } else if (mesesDeuda > 3) {
+                              estadoColor = Colors.red;
+                              estadoTexto = 'Atrasado';
+                            } else {
+                              estadoColor = Colors.orange;
+                              estadoTexto = 'Pendiente';
+                            }
 
-                        if (pagos.isEmpty) {
-                          estadoColor = Colors.grey;
-                          estadoTexto = 'Sin registro';
-                        } else if (ultimoMesPagado >= mesActual) {
-                          estadoColor = Colors.green;
-                          estadoTexto = 'Pagado';
-                        } else if (mesesDeuda > 3) {
-                          estadoColor = Colors.red;
-                          estadoTexto = 'Atrasado';
-                        } else {
-                          estadoColor = Colors.orange;
-                          estadoTexto = 'Pendiente';
-                        }
+                            final categoriaEquipoNombre =
+                                idToLabel[jugador.categoriaEquipoId] ??
+                                    'Categoría desconocida';
 
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: estadoColor,
-                              child:
-                                  const Icon(Icons.person, color: Colors.white),
-                            ),
-                            title:
-                                Text('${jugador.nombres} ${jugador.apellido}'),
-                            subtitle: FutureBuilder<DocumentSnapshot>(
-                              future: FirebaseFirestore.instance
-                                  .collection('categoria_equipo')
-                                  .doc(jugador.categoriaEquipoId)
-                                  .get(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Text('Cargando categoría...');
-                                }
-                                if (!snapshot.hasData || !snapshot.data!.exists) {
-                                  return const Text('Categoría desconocida');
-                                }
-                                final data = snapshot.data!.data()
-                                    as Map<String, dynamic>;
-                                return Text(
-                                    'Categoría: ${data['categoria']} - ${data['equipo']}');
-                              },
-                            ),
-                            trailing: Chip(
-                              label: Text(estadoTexto,
-                                  style: const TextStyle(color: Colors.white)),
-                              backgroundColor: estadoColor,
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => PaymentHistoryScreen(
-                                    jugadorId: jugador.id,
-                                    jugadorNombre:
-                                        '${jugador.nombres} ${jugador.apellido}',
-                                  ),
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: estadoColor,
+                                  child: const Icon(Icons.person,
+                                      color: Colors.white),
                                 ),
-                              );
-                            },
-                          ),
+                                title: Text(
+                                    '${jugador.nombres} ${jugador.apellido}'),
+                                subtitle: Text('Categoría: $categoriaEquipoNombre'),
+                                trailing: Chip(
+                                  label: Text(estadoTexto,
+                                      style:
+                                          const TextStyle(color: Colors.white)),
+                                  backgroundColor: estadoColor,
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PaymentHistoryScreen(
+                                        jugadorId: jugador.id,
+                                        jugadorNombre:
+                                            '${jugador.nombres} ${jugador.apellido}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
                         );
                       },
                     );

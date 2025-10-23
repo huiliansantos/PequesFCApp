@@ -17,7 +17,9 @@ import '../categorias/categoria_equipo_form_screen.dart';
 import '../profesor/profesor_form_screen.dart';
 import '../reportes/reportes_screen.dart';
 import '../dashboard/admin_dashboard_screen.dart';
-
+import '../categorias/categoria_list_screen.dart';
+import '../torneos/torneo_list_screen.dart';
+import '../torneos/torneo_form_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String role;
@@ -51,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Categorías-Equipos',
     'Profesores',
     'Torneos',
-    'Reportes', // Nuevo título
+    'Reportes',
   ];
 
   static final List<Widget> _adminScreens = [
@@ -62,10 +64,10 @@ class _HomeScreenState extends State<HomeScreen> {
     ResultadosListScreen(),
     PaymentManagementScreen(),
     CategoriaListAsistenciaScreen(),
-    ReporteAsistenciaScreen(jugadorId: ''),
+    CategoriaListScreen(), // <-- Aquí va la lista de categorías-equipos
     ProfesorListScreen(),
-    Center(child: Text('Torneos')), // Placeholder
-    ReportesScreen(), // Nueva pantalla de reportes
+    TorneoListScreen(),
+    ReportesScreen(),
   ];
 
   static const List<String> _apoderadoTitles = [
@@ -75,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Resultados',
     'Pagos',
     'Asistencias',
-    'Reportes', // Nuevo título
+    'Reportes',
   ];
 
   List<Widget> get _apoderadoScreens => [
@@ -85,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ResultadosListScreen(),
         PaymentManagementScreen(),
         ReporteAsistenciaScreen(jugadorId: widget.jugadorId ?? ''),
-        ReportesScreen(), // Nueva pantalla de reportes
+        ReportesScreen(),
       ];
 
   List<BottomNavigationBarItem> get _navItems => widget.role == 'admin'
@@ -125,11 +127,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _drawerItem(context, Icons.sports_soccer, 'Partidos', 3),
         _drawerItem(context, Icons.emoji_events, 'Resultados', 4),
         _drawerItem(context, Icons.payment, 'Pagos', 5),
-        _drawerItem(context, Icons.category, 'Asistencias', 6),
-        _drawerItem(context, Icons.checklist, 'Categorías-Equipos', 7),
+        _drawerItem(context, Icons.checklist, 'Asistencias', 6),
+        _drawerItem(context, Icons.category, 'Categorías-Equipos', 7),
         _drawerItem(context, Icons.school, 'Profesores', 8),
         _drawerItem(context, Icons.emoji_events_outlined, 'Torneos', 9),
-        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 10), // Nuevo ítem
+        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 10),
       ];
     } else {
       return [
@@ -140,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _drawerItem(context, Icons.emoji_events, 'Resultados', 4),
         _drawerItem(context, Icons.payment, 'Pagos', 5),
         _drawerItem(context, Icons.checklist, 'Asistencias', 6),
-        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 7), // Nuevo ítem
+        _drawerItem(context, Icons.picture_as_pdf, 'Reportes', 7),
       ];
     }
   }
@@ -149,8 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
       BuildContext context, IconData icon, String title, int index) {
     return ListTile(
       leading: Icon(icon,
-          color:
-              _selectedIndex == index ? const Color(0xFFD32F2F) : Colors.grey),
+          color: _selectedIndex == index ? const Color(0xFFD32F2F) : Colors.grey),
       title: Text(title),
       selected: _selectedIndex == index,
       onTap: () {
@@ -160,6 +161,14 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(builder: (_) => const ReportesScreen()),
           );
+        } else if (title == 'Categorías-Equipos') {
+          setState(() {
+            _selectedIndex = 7; // Cambia el índice al de CategoriaListScreen
+          });
+        }else if (title == 'Torneos') {
+          setState(() {
+            _selectedIndex = 9; // Cambia el índice al de TorneoListScreen
+          });
         } else {
           setState(() {
             _selectedIndex = index;
@@ -296,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: screens[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          gradient:  LinearGradient(
+          gradient: LinearGradient(
             colors: [
               Color(0xFFD32F2F),
               Color(0xFFF57C00),
@@ -304,8 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-        ),      
-
+        ),
         child: BottomNavigationBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -430,6 +438,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const ProfesorFormScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.emoji_events_outlined,
+                              color: Color(0xFFD32F2F)),
+                          title: const Text('Nuevo Torneo'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const TorneoFormScreen(),
                               ),
                             );
                           },

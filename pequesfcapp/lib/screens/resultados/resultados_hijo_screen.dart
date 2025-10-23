@@ -35,7 +35,7 @@ class _ResultadosHijoScreenState extends ConsumerState<ResultadosHijoScreen> {
   Widget build(BuildContext context) {
     final idsCategoriaHijos = widget.hijos
         .map((h) => h.categoriaEquipoId)
-        .where((id) => id != null && id.isNotEmpty)
+        .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
 

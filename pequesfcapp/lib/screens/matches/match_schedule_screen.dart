@@ -18,25 +18,6 @@ class MatchScheduleScreen extends ConsumerStatefulWidget {
 class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
   String categoriaSeleccionada = 'Todas las categorias';
 
-  Future<String> getCategoriaEquipoNombre(String? categoriaEquipoId) async {
-    final id = (categoriaEquipoId ?? '').trim();
-    if (id.isEmpty) return 'Sin asignar';
-    final doc = await FirebaseFirestore.instance
-        .collection('categoria_equipo')
-        .doc(id)
-        .get();
-    if (!doc.exists) return id;
-    final data = doc.data();
-    if (data == null) return id;
-    final categoria = (data['categoria'] ?? '').toString();
-    final equipo = (data['equipo'] ?? '').toString();
-    final label = [
-      if (categoria.isNotEmpty) categoria,
-      if (equipo.isNotEmpty) equipo
-    ].join(' - ');
-    return label.isNotEmpty ? label : id;
-  }
-
   String _formatDateField(dynamic fechaField) {
     if (fechaField == null) return 'Fecha no definida';
     if (fechaField is Timestamp) {
@@ -62,12 +43,14 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
     return v.toString().trim();
   }
 
-  bool _partidoHasResultadoForId(MatchModel partido, Set<String> partidosConResultado) {
+  bool _partidoHasResultadoForId(
+      MatchModel partido, Set<String> partidosConResultado) {
     final pid = _normalizeId(partido.id);
     if (pid.isEmpty) return false;
     if (partidosConResultado.contains(pid)) return true;
     final pidLower = pid.toLowerCase();
-    if (partidosConResultado.any((r) => r.toLowerCase() == pidLower)) return true;
+    if (partidosConResultado.any((r) => r.toLowerCase() == pidLower))
+      return true;
     if (pid.length >= 8) {
       final tail = pid.substring(pid.length - 8);
       if (partidosConResultado.any((r) => r.endsWith(tail))) return true;
@@ -111,13 +94,23 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                           : (data['fecha'] is String
                               ? DateTime.tryParse(data['fecha'])
                               : null),
-                      golesFavor: (data['golesFavor'] ?? data['golesA'] ?? 0) is int
+                      golesFavor: (data['golesFavor'] ?? data['golesA'] ?? 0)
+                              is int
                           ? (data['golesFavor'] ?? data['golesA'] ?? 0) as int
-                          : int.tryParse((data['golesFavor'] ?? data['golesA'] ?? 0).toString()) ?? 0,
-                      golesContra: (data['golesContra'] ?? data['golesB'] ?? 0) is int
+                          : int.tryParse(
+                                  (data['golesFavor'] ?? data['golesA'] ?? 0)
+                                      .toString()) ??
+                              0,
+                      golesContra: (data['golesContra'] ?? data['golesB'] ?? 0)
+                              is int
                           ? (data['golesContra'] ?? data['golesB'] ?? 0) as int
-                          : int.tryParse((data['golesContra'] ?? data['golesB'] ?? 0).toString()) ?? 0,
-                      observaciones: (data['observaciones'] ?? data['observations'] ?? '').toString(),
+                          : int.tryParse(
+                                  (data['golesContra'] ?? data['golesB'] ?? 0)
+                                      .toString()) ??
+                              0,
+                      observaciones:
+                          (data['observaciones'] ?? data['observations'] ?? '')
+                              .toString(),
                     );
                   }).toList() ??
                   <ResultadoModel>[];
@@ -128,7 +121,8 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                   .toSet();
 
               final partidosSinResultado = partidos
-                  .where((p) => !_partidoHasResultadoForId(p, partidosConResultado))
+                  .where((p) =>
+                      !_partidoHasResultadoForId(p, partidosConResultado))
                   .toList();
 
               final categoriasIds = partidosSinResultado
@@ -137,102 +131,217 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                   .toList();
 
               final partidosFiltrados = partidosSinResultado.where((partido) {
-                if (categoriaSeleccionada == 'Todas las categorias') return true;
-                return _normalizeId(partido.categoriaEquipoId) == _normalizeId(categoriaSeleccionada);
+                if (categoriaSeleccionada == 'Todas las categorias')
+                  return true;
+                return _normalizeId(partido.categoriaEquipoId) ==
+                    _normalizeId(categoriaSeleccionada);
               }).toList();
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Cargamos las categorías desde Firestore y las mostramos como "categoria - equipo" ordenadas
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: FutureBuilder<QuerySnapshot>(
-                      future: FirebaseFirestore.instance.collection('categoria_equipo').get(),
-                      builder: (context, catSnap) {
-                        if (catSnap.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        if (catSnap.hasError) {
-                          return Center(child: Text('Error categorías: ${catSnap.error}'));
-                        }
+              // --- OPTIMIZACIÓN: Cargar todos los nombres de categoria-equipo antes del ListView ---
+              return FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('categoria_equipo')
+                    .get(),
+                builder: (context, catSnap) {
+                  if (catSnap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (catSnap.hasError) {
+                    return Center(
+                        child: Text('Error categorías: ${catSnap.error}'));
+                  }
 
-                        final docs = catSnap.data?.docs ?? [];
-                        final Map<String, String> idToLabel = {
-                          for (var d in docs)
-                            d.id: '${(d.data() as Map<String, dynamic>)['categoria'] ?? ''}'
-                                ' - ${(d.data() as Map<String, dynamic>)['equipo'] ?? ''}'
-                        };
+                  final docs = catSnap.data?.docs ?? [];
+                  final Map<String, String> idToLabel = {
+                    for (var d in docs)
+                      d.id: '${(d.data() as Map<String, dynamic>)['categoria'] ?? ''}'
+                          ' - ${(d.data() as Map<String, dynamic>)['equipo'] ?? ''}'
+                  };
 
-                        // Construye lista de pares (id, label) solo para los ids presentes en partidos
-                        final idLabelPairs = categoriasIds
-                            .map((id) => MapEntry(id, idToLabel[id]?.trim() ?? id))
-                            .toList()
-                          ..sort((a, b) => a.value.compareTo(b.value));
+                  // Construye lista de pares (id, label) solo para los ids presentes en partidos
+                  final idLabelPairs = categoriasIds
+                      .map((id) => MapEntry(id, idToLabel[id]?.trim() ?? id))
+                      .toList()
+                    ..sort((a, b) => a.value.compareTo(b.value));
 
-                        final validIds = idLabelPairs.map((e) => e.key).toList();
-                        final valueToShow = (validIds.contains(categoriaSeleccionada) || categoriaSeleccionada == 'Todas las categorias')
-                            ? categoriaSeleccionada
-                            : 'Todas las categorias';
+                  final validIds = idLabelPairs.map((e) => e.key).toList();
+                  final valueToShow =
+                      (validIds.contains(categoriaSeleccionada) ||
+                              categoriaSeleccionada == 'Todas las categorias')
+                          ? categoriaSeleccionada
+                          : 'Todas las categorias';
 
-                        return DropdownButton<String>(
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Dropdown de categorías
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: DropdownButton<String>(
                           value: valueToShow,
                           hint: const Text('Filtrar por categoría'),
                           isExpanded: true,
                           items: <DropdownMenuItem<String>>[
-                            const DropdownMenuItem(value: 'Todas las categorias', child: Text('Todas las categorias')),
+                            const DropdownMenuItem(
+                                value: 'Todas las categorias',
+                                child: Text('Todas las categorias')),
                             ...idLabelPairs.map((e) => DropdownMenuItem(
                                   value: e.key,
-                                  child: Text(e.value.isEmpty ? 'Sin asignar' : e.value),
+                                  child: Text(e.value.isEmpty
+                                      ? 'Sin asignar'
+                                      : e.value),
                                 )),
                           ],
                           onChanged: (value) {
                             setState(() {
-                              categoriaSeleccionada = value ?? 'Todas las categorias';
+                              categoriaSeleccionada =
+                                  value ?? 'Todas las categorias';
                             });
                           },
-                        );
-                      },
-                    ),
-                  ),
-                  Expanded(
-                     child: partidosFiltrados.isEmpty
-                        ? const Center(child: Text('No hay partidos pendientes \n (todos tienen resultados o no hay partidos).'))
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: partidosFiltrados.length,
-                            itemBuilder: (context, index) {
-                              final partido = partidosFiltrados[index];
-                              return FutureBuilder<String>(
-                                future: getCategoriaEquipoNombre(partido.categoriaEquipoId),
-                                builder: (context, snapshot) {
-                                  final categoriaEquipoNombre = snapshot.data ?? (partido.categoriaEquipoId ?? 'Sin asignar');
+                        ),
+                      ),
+                      Expanded(
+                        child: partidosFiltrados.isEmpty
+                            ? const Center(
+                                child: Text(
+                                    'No hay partidos pendientes \n (todos tienen resultados o no hay partidos).'))
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                itemCount: partidosFiltrados.length,
+                                itemBuilder: (context, index) {
+                                  final partido = partidosFiltrados[index];
+                                  final categoriaEquipoNombre = idToLabel[
+                                          _normalizeId(
+                                              partido.categoriaEquipoId)] ??
+                                      (_normalizeId(partido.categoriaEquipoId)
+                                              .isNotEmpty
+                                          ? _normalizeId(
+                                              partido.categoriaEquipoId)
+                                          : 'Sin asignar');
 
                                   // CARD con diseño solicitado
                                   return Card(
-                                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                    margin: const EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 16),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(18)),
                                     elevation: 4,
                                     child: InkWell(
                                       onTap: () {
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(builder: (_) => MatchDetailScreen(match: partido)),
+                                          MaterialPageRoute(
+                                              builder: (_) => MatchDetailScreen(
+                                                  match: partido)),
+                                        );
+                                      },
+                                      onLongPress: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.vertical(
+                                                top: Radius.circular(16)),
+                                          ),
+                                          builder: (context) => Padding(
+                                            padding: const EdgeInsets.all(24.0),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                ListTile(
+                                                  leading: const Icon(
+                                                      Icons.edit,
+                                                      color: Color(0xFFD32F2F)),
+                                                  title: const Text(
+                                                      'Modificar partido'),
+                                                  onTap: () {
+                                                    Navigator.pop(context);
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            MatchFormScreen(
+                                                                match: partido),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                                ListTile(
+                                                  leading: const Icon(
+                                                      Icons.delete,
+                                                      color: Colors.red),
+                                                  title: const Text(
+                                                      'Eliminar partido'),
+                                                  onTap: () async {
+                                                    Navigator.pop(context);
+                                                    final confirmar =
+                                                        await showDialog<bool>(
+                                                      context: context,
+                                                      builder: (ctx) =>
+                                                          AlertDialog(
+                                                        title: const Text(
+                                                            'Eliminar partido'),
+                                                        content: const Text(
+                                                            '¿Estás seguro de eliminar este partido?'),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    ctx, false),
+                                                            child: const Text(
+                                                                'Cancelar'),
+                                                          ),
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    ctx, true),
+                                                            child: const Text(
+                                                                'Eliminar',
+                                                                style: TextStyle(
+                                                                    color: Colors
+                                                                        .red)),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                    if (confirmar == true) {
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection(
+                                                              'partidos')
+                                                          .doc(partido.id)
+                                                          .delete();
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                            content: Text(
+                                                                'Partido eliminado')),
+                                                      );
+                                                    }
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         );
                                       },
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 18.0),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 10.0, horizontal: 18.0),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            //reducir el espacio arriba y abajo del nombre del torneo
                                             const SizedBox(height: 2),
                                             // Torneo title
-                                            if (partido.torneo != null && partido.torneo!.isNotEmpty)
+                                            if (partido.torneo.isNotEmpty)
                                               Padding(
-                                                padding: const EdgeInsets.only(bottom: 6.0),
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 6.0),
                                                 child: Text(
-                                                  'Torneo: ${partido.torneo!}',
+                                                  'Torneo: ${partido.torneo}',
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     color: Color(0xFFD32F2F),
@@ -240,18 +349,22 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                                   ),
                                                 ),
                                               ),
-                                            const Divider(color: Colors.black12, thickness: 1),
+                                            const Divider(
+                                                color: Colors.black12,
+                                                thickness: 1),
                                             const SizedBox(height: 2),
                                             // Middle row: left label + center time + right rival
                                             Row(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
                                               children: [
                                                 // Left: categoria / equipo local (bold)
                                                 Expanded(
                                                   child: Text(
                                                     categoriaEquipoNombre,
                                                     style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       fontSize: 10,
                                                     ),
                                                   ),
@@ -259,11 +372,11 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                                 const SizedBox(width: 8),
                                                 // home logo
                                                 Image.asset('assets/peques.png',
-                                                 width: 40, height: 40),
+                                                    width: 40, height: 40),
                                                 const SizedBox(width: 8),
                                                 // Time center
                                                 Text(
-                                                  partido.hora ?? '',
+                                                  partido.hora,
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     color: Color(0xFFF57C00),
@@ -272,18 +385,22 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                                 ),
                                                 const SizedBox(width: 8),
                                                 // Rival logo and name
-                                                Image.asset('assets/rival.png', 
-                                                width: 40, height: 40),
+                                                Image.asset('assets/rival.png',
+                                                    width: 40, height: 40),
                                                 const SizedBox(width: 8),
                                                 Expanded(
                                                   child: Text(
-                                                    partido.equipoRival ?? '',
+                                                    partido.equipoRival,
                                                     textAlign: TextAlign.left,
+                                                    //puede ser en dos lineas
+                                                    maxLines: 2,
                                                     style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       fontSize: 10,
                                                     ),
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                               ],
@@ -292,13 +409,18 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                             // Location row
                                             Row(
                                               children: [
-                                                const Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 16),
+                                                const Icon(Icons.location_on,
+                                                    color: Color(0xFFD32F2F),
+                                                    size: 16),
                                                 const SizedBox(width: 8),
                                                 Expanded(
                                                   child: Text(
-                                                    partido.cancha ?? '',
-                                                    style: const TextStyle(fontSize: 13, color: Colors.black54),
-                                                    overflow: TextOverflow.ellipsis,
+                                                    partido.cancha,
+                                                    style: const TextStyle(
+                                                        fontSize: 13,
+                                                        color: Colors.black54),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                               ],
@@ -307,11 +429,15 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                             // Date row
                                             Row(
                                               children: [
-                                                const Icon(Icons.calendar_today, color: Color(0xFFD32F2F), size: 16),
+                                                const Icon(Icons.calendar_today,
+                                                    color: Color(0xFFD32F2F),
+                                                    size: 16),
                                                 const SizedBox(width: 8),
                                                 Text(
                                                   'Fecha: ${_formatDateField(partido.fecha)}',
-                                                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                                                  style: const TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.black54),
                                                 ),
                                               ],
                                             ),
@@ -321,11 +447,11 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
                                     ),
                                   );
                                 },
-                              );
-                            },
-                          ),
-                  ),
-                ],
+                              ),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );
@@ -335,7 +461,8 @@ class _MatchScheduleScreenState extends ConsumerState<MatchScheduleScreen> {
         backgroundColor: const Color(0xFFF57C00),
         child: const Icon(Icons.add),
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchFormScreen()));
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MatchFormScreen()));
         },
       ),
     );

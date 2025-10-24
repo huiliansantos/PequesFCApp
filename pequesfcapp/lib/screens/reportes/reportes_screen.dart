@@ -405,9 +405,7 @@ class FiltroReporteScreen extends StatelessWidget {
 
       final apoderadosTabla = apoDocs.map((doc) {
         final a = doc.data() as Map<String, dynamic>;
-        final nombreCompleto =
-            '${(a['nombres'] ?? a['nombre'] ?? '').toString()} ${(a['apellido'] ?? '').toString()}'
-                .trim();
+        final nombreCompleto =(a['nombreCompleto']).toString();         
         final ci = (a['ci'] ?? a['dni'] ?? '').toString();
         final celular = (a['celular'] ?? a['telefono'] ?? '').toString();
         final usuario = (a['usuario'] ?? a['username'] ?? a['email'] ?? '').toString();

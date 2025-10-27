@@ -67,8 +67,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           final gestion = anioSeleccionado != null
               ? int.tryParse(anioSeleccionado!) ?? gestionActual
               : gestionActual;
+
+          // Todos los pagos del año seleccionado
           final pagosGestion = pagos.where((p) => p.anio == gestion).toList();
 
+          // Cálculo del estado general (usa todos los pagos del año)
           int ultimoMesPagado = -1;
           for (var pago in pagosGestion) {
             if (pago.estado == 'pagado') {
@@ -101,21 +104,25 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             estadoTexto = 'Pendiente';
           }
 
-          // Filtros
-          final pagosFiltradosPorAnio = pagos.where((p) => p.anio == gestion).toList();
+          // Filtrar pagos según estado seleccionado (solo sobre pagos registrados)
+          final pagosFiltradosPorAnio = pagosGestion;
           final pagosFiltrados = estadoSeleccionado == 'todos'
               ? pagosFiltradosPorAnio
               : pagosFiltradosPorAnio.where((p) => p.estado == estadoSeleccionado).toList();
 
+          // Ordenar pagos por mes ascendente
           pagosFiltrados.sort((a, b) {
             final mesA = mesesDelAno.indexOf(a.mes);
             final mesB = mesesDelAno.indexOf(b.mes);
             return mesA.compareTo(mesB);
           });
 
-          final mesesPagados = pagosFiltrados.map((p) => p.mes).toSet();
+          // Meses con pagos registrados (usar todos los pagos del año, no solo los filtrados)
+          final mesesConPagoRegistrado = pagosFiltradosPorAnio.map((p) => p.mes).toSet();
+
           final items = <Widget>[];
 
+          // Agregar tarjetas de pagos filtrados (registrados)
           for (final pago in pagosFiltrados) {
             Color estadoColorPago;
             switch (pago.estado) {
@@ -169,36 +176,39 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             ));
           }
 
-          // Mostrar meses pendientes por defecto (solo si no hay pago registrado para ese mes)
-          for (final mes in mesesDelAno) {
-            if (!mesesPagados.contains(mes)) {
-              items.add(Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.orange,
-                    child: Icon(Icons.attach_money, color: Colors.white),
-                  ),
-                  title: Text('$mes - Bs. 0.00'),
-                  subtitle: const Text('Pendiente de pago'),
-                  trailing: const Chip(
-                    label: Text('PENDIENTE', style: TextStyle(color: Colors.white)),
-                    backgroundColor: Colors.orange,
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PaymentForm(
-                          jugadorId: widget.jugadorId,
-                          jugadorNombre: widget.jugadorNombre,
-                          mesInicial: mes,
+          // Mostrar meses pendientes por defecto (solo si el filtro lo permite)
+          // se muestran los meses que NO tienen pago registrado en el año
+          if (estadoSeleccionado == 'todos' || estadoSeleccionado == 'pendiente') {
+            for (final mes in mesesDelAno) {
+              if (!mesesConPagoRegistrado.contains(mes)) {
+                items.add(Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Colors.orange,
+                      child: Icon(Icons.attach_money, color: Colors.white),
+                    ),
+                    title: Text('$mes - Bs. 0.00'),
+                    subtitle: const Text('Pendiente de pago'),
+                    trailing: const Chip(
+                      label: Text('PENDIENTE', style: TextStyle(color: Colors.white)),
+                      backgroundColor: Colors.orange,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PaymentForm(
+                            jugadorId: widget.jugadorId,
+                            jugadorNombre: widget.jugadorNombre,
+                            mesInicial: mes,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ));
+                      );
+                    },
+                  ),
+                ));
+              }
             }
           }
 
@@ -215,8 +225,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         hint: const Text('Seleccionar año'),
                         items: [
                           for (var i = 2021; i <= DateTime.now().year; i++)
-                            DropdownMenuItem(
-                                value: i.toString(), child: Text(i.toString())),
+                            DropdownMenuItem(value: i.toString(), child: Text(i.toString())),
                         ],
                         onChanged: (value) {
                           setState(() {

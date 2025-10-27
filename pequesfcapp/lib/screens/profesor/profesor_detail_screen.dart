@@ -89,14 +89,41 @@ class ProfesorDetailScreen extends ConsumerWidget {
               if (profesor.id.isEmpty) {
                 return const Center(child: Text('Profesor no encontrado'));
               }
-              final categoriaEquipo = categoriasEquipos.firstWhere(
-                (ce) => ce.id == profesor.categoriaEquipoId,
-                orElse: () =>
-                    CategoriaEquipoModel(id: '', categoria: '', equipo: ''),
-              );
-              final categoriaEquipoNombre = categoriaEquipo.id.isNotEmpty
-                  ? '${categoriaEquipo.categoria} - ${categoriaEquipo.equipo}'
-                  : 'Sin asignar';
+
+              // Manejar múltiples IDs separados por comas
+              final raw = (profesor.categoriaEquipoId ?? '').trim();
+              final ids = raw.isEmpty
+                  ? <String>[]
+                  : raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+              final matched = <CategoriaEquipoModel>[];
+              final missing = <String>[];
+
+              for (final id in ids) {
+                try {
+                  final found = categoriasEquipos.firstWhere((ce) => ce.id == id);
+                  matched.add(found);
+                } catch (_) {
+                  missing.add(id);
+                }
+              }
+
+              String categoriaEquipoNombre;
+              if (matched.isNotEmpty) {
+                final assigned = matched.map((ce) => '${ce.categoria} - ${ce.equipo}').join('\n');
+                if (missing.isNotEmpty) {
+                  categoriaEquipoNombre = '$assigned\nIDs no encontrados: ${missing.join(', ')}';
+                } else {
+                  categoriaEquipoNombre = assigned;
+                }
+              } else {
+                if (missing.isNotEmpty) {
+                  categoriaEquipoNombre = 'IDs no encontrados: ${missing.join(', ')}';
+                } else {
+                  categoriaEquipoNombre = 'Sin asignar';
+                }
+              }
+
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -213,6 +240,7 @@ class _ProfesorDetailContentState extends State<_ProfesorDetailContent> {
                 Text(label,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
                 Text(value, style: const TextStyle(fontSize: 15)),
               ],
             ),

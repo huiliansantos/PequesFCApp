@@ -31,4 +31,33 @@ class AsistenciaRepository {
         snapshot.docs.map((doc) => AsistenciaModel.fromMap(doc.data())).toList()
       );
   }
+  Future<List<AsistenciaModel>> fetchByCategoriaEquipo({required String categoriaEquipoId, DateTime? from, DateTime? to}) async {
+    Query query = _db.collection('asistencias')
+      .where('categoriaEquipoId', isEqualTo: categoriaEquipoId);
+
+    if (from != null) {
+      query = query.where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(from));
+    }
+    if (to != null) {
+      query = query.where('fecha', isLessThanOrEqualTo: Timestamp.fromDate(to));
+    }
+
+    final snapshot = await query.get();
+    return snapshot.docs.map((doc) => AsistenciaModel.fromMap(doc.data() as Map<String, dynamic>)).toList();
+  }
+  //fetchByJugador
+  Future<List<AsistenciaModel>> fetchByJugador({required String jugadorId, DateTime? from, DateTime? to}) async {
+    Query query = _db.collection('asistencias')
+      .where('jugadorId', isEqualTo: jugadorId);
+
+    if (from != null) {
+      query = query.where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(from));
+    }
+    if (to != null) {
+      query = query.where('fecha', isLessThanOrEqualTo: Timestamp.fromDate(to));
+    }
+
+    final snapshot = await query.get();
+    return snapshot.docs.map((doc) => AsistenciaModel.fromMap(doc.data() as Map<String, dynamic>)).toList();
+  } 
 }

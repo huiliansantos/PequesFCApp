@@ -85,7 +85,10 @@ class SeleccionarCategoriaScreen extends StatelessWidget {
     );
 
     // Mapear categoria_equipo id -> "Categoria - Equipo"
-    final categoriasSnapshot = await FirebaseFirestore.instance.collection('categoria_equipo').get();
+    final categoriasSnapshot = await FirebaseFirestore.instance
+        .collection('categoria_equipo')
+        .orderBy('createdAt', descending: true) // <-- más reciente a más antiguo
+        .get();
     final categoriasMap = Map.fromEntries(categoriasSnapshot.docs.map((doc) {
       final data = doc.data();
       final categoriaText = (data['categoria'] ?? '').toString();

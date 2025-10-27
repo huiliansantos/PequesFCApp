@@ -3,8 +3,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../repositories/asistencia_repository.dart';
 import 'seleccionar_categoria_screen.dart';
-
+import 'pdf_helper.dart';
 
 class ReportesScreen extends StatelessWidget {
   const ReportesScreen({Key? key}) : super(key: key);
@@ -54,106 +55,107 @@ class ReportesScreen extends StatelessWidget {
   }
 }
 
-class FiltroReporteScreen extends StatelessWidget {
+class FiltroReporteScreen extends StatefulWidget {
   final String tipoReporte;
   const FiltroReporteScreen({Key? key, required this.tipoReporte})
       : super(key: key);
 
-  Future<pw.Document> _generarPDF(String tipoReporte, String filtro) async {
+  @override
+  State<FiltroReporteScreen> createState() => _FiltroReporteScreenState();
+}
+
+class _FiltroReporteScreenState extends State<FiltroReporteScreen> {
+  DateTime? _from;
+  DateTime? _to;
+
+  Future<void> _pickFrom() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _from ?? DateTime.now().subtract(const Duration(days: 30)),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _from = picked);
+  }
+
+  Future<void> _pickTo() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _to ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _to = picked);
+  }
+
+  Future<pw.Document> _generarPDF(String tipoReporte, String filtro, DateTime? from, DateTime? to) async {
     final pdf = pw.Document();
+    final repo = AsistenciaRepository();
 
-    // Cargar el logo (ajusta la ruta en pubspec.yaml si es necesario)
-    final logoImage = await imageFromAssetBundle('assets/peques.png');
+    // Cargar recursos vía helper
+    final logoImage = await loadImageFromAsset('assets/peques.png');
 
-    // Estilos comunes
-    final titleStyle = pw.TextStyle(
-      fontSize: 24,
-      fontWeight: pw.FontWeight.bold,
-      color: PdfColors.red900,
-    );
+    // Intentar cargar fuentes; si falla usamos tema por defecto del helper
+    pw.PageTheme pageTheme;
+    try {
+      final baseFont = await loadFontFromAsset('assets/fonts/Roboto-Regular.ttf');
+      final boldFont = await loadFontFromAsset('assets/fonts/Roboto-Bold.ttf');
+      pageTheme = defaultPageTheme(baseFont: baseFont, boldFont: boldFont);
+    } catch (_) {
+      pageTheme = defaultPageTheme();
+    }
 
-    // Encabezado
-    pw.Widget buildHeader(String title) {
-      return pw.Container(
-        padding: const pw.EdgeInsets.all(16),
-        decoration: pw.BoxDecoration(
-          gradient: pw.LinearGradient(
-            colors: [PdfColors.red900, PdfColors.orange900],
-            begin: pw.Alignment.topLeft,
-            end: pw.Alignment.bottomRight,
+    // Formateo de fechas reutilizable
+    String formatDate(dynamic rawFecha) {
+      if (rawFecha == null) return '';
+      try {
+        if (rawFecha is Timestamp) {
+          final dt = rawFecha.toDate();
+          return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+        }
+        if (rawFecha is int) {
+          final dt = DateTime.fromMillisecondsSinceEpoch(rawFecha);
+          return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+        }
+        if (rawFecha is String) {
+          final onlyDigits = RegExp(r'^\d+$');
+          if (onlyDigits.hasMatch(rawFecha)) {
+            final asInt = int.tryParse(rawFecha) ?? 0;
+            final millis = rawFecha.length == 10 ? asInt * 1000 : asInt;
+            final dt = DateTime.fromMillisecondsSinceEpoch(millis);
+            return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+          }
+          final parsed = DateTime.tryParse(rawFecha);
+          if (parsed != null) return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+          return rawFecha.split('T').first;
+        }
+      } catch (_) {}
+      return '';
+    }
+
+    void _addPageWithTable(String title, List<String> headers, List<List<String>> rows) {
+      pdf.addPage(
+        pw.Page(
+          pageTheme: pageTheme,
+          build: (context) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              buildPdfHeader(logoImage, title),
+              pw.SizedBox(height: 12),
+              rows.isEmpty
+                  ? pw.Text('No hay registros.', style: const pw.TextStyle(fontSize: 12))
+                  : buildPdfTable(headers, rows),
+              pw.SizedBox(height: 10),
+            ],
           ),
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-        ),
-        child: pw.Row(
-          children: [
-            pw.ClipOval(
-              child: pw.Container(
-                width: 60,
-                height: 60,
-                child: pw.Image(logoImage),
-              ),
-            ),
-            pw.SizedBox(width: 16),
-            pw.Expanded(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('Peques FC',
-                      style: pw.TextStyle(
-                        fontSize: 28,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                      )),
-                  pw.Text(title,
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        color: PdfColors.white,
-                      )),
-                ],
-              ),
-            ),
-          ],
         ),
       );
     }
 
-    // Tema de página
-    pw.PageTheme pageTheme = pw.PageTheme(
-      pageFormat: PdfPageFormat.a4,
-      theme: pw.ThemeData.withFont(
-        base: await PdfGoogleFonts.robotoRegular(),
-        bold: await PdfGoogleFonts.robotoBold(),
-      ),
-      buildBackground: (context) => pw.Container(
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.orange900, width: 2),
-        ),
-      ),
-    );
-
-    pw.Widget _buildTable(List<String> headers, List<List<String>> data) {
-      final columnWidths = <int, pw.FlexColumnWidth>{};
-      for (var i = 0; i < headers.length; i++) {
-        columnWidths[i] = pw.FlexColumnWidth(i == 0 ? 2 : 1);
-      }
-
-      return pw.Table.fromTextArray(
-        headers: headers,
-        data: data,
-        headerStyle: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-        cellStyle: pw.TextStyle(fontSize: 10),
-        headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-        cellAlignment: pw.Alignment.centerLeft,
-        columnWidths: columnWidths,
-        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-      );
-    }
-
-    // ------------------ Jugadores (incluye por_categoria_equipo) ------------------
-    if (tipoReporte == 'jugadores') {
-      final categoriasSnapshot = await FirebaseFirestore.instance
-          .collection('categoria_equipo')
-          .get();
+    // ------------------ Asistencias (usa AsistenciaRepository y filtros por fecha) ------------------
+    if (tipoReporte == 'asistencias') {
+      // cargar mapas de categorías y jugadores
+      final categoriasSnapshot = await FirebaseFirestore.instance.collection('categoria_equipo').get();
       final categoriasMap = Map.fromEntries(
         categoriasSnapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -164,47 +166,144 @@ class FiltroReporteScreen extends StatelessWidget {
         }),
       );
 
-      String formatDate(dynamic rawFecha) {
-        if (rawFecha == null) return '';
-        try {
-          if (rawFecha is Timestamp) {
-            return DateTime.fromMillisecondsSinceEpoch(
-                    rawFecha.millisecondsSinceEpoch)
-                .toIso8601String()
-                .split('T')[0];
-          }
-          if (rawFecha is int) {
-            return DateTime.fromMillisecondsSinceEpoch(rawFecha)
-                .toIso8601String()
-                .split('T')[0];
-          }
-          if (rawFecha is String) {
-            final onlyDigits = RegExp(r'^\d+$');
-            if (onlyDigits.hasMatch(rawFecha)) {
-              final asInt = int.tryParse(rawFecha) ?? 0;
-              final millis = rawFecha.length == 10 ? asInt * 1000 : asInt;
-              return DateTime.fromMillisecondsSinceEpoch(millis)
-                  .toIso8601String()
-                  .split('T')[0];
-            }
-            final parsed = DateTime.tryParse(rawFecha);
-            if (parsed != null) return parsed.toIso8601String().split('T')[0];
-            return rawFecha.split('T').first;
-          }
-        } catch (_) {}
-        return '';
+      final jugadoresSnapshot = await FirebaseFirestore.instance.collection('jugadores').get();
+      final jugadoresMap = <String, String>{};
+      for (final d in jugadoresSnapshot.docs) {
+        final data = d.data() as Map<String, dynamic>;
+        final nombre = ((data['nombres'] ?? data['nombre']) ?? '').toString();
+        final apellido = (data['apellido'] ?? '').toString();
+        jugadoresMap[d.id] = (nombre + ' ' + apellido).trim();
       }
 
-      final jugadoresSnapshot =
-          await FirebaseFirestore.instance.collection('jugadores').get();
+      // FILTRO: por categoría-equipo => por cada categoría solicitar asistencias por rango al repo
+      if (filtro == 'por_categoria_equipo') {
+        final allCatIds = categoriasMap.keys.toList()..sort();
+        for (final catId in allCatIds) {
+          final records = await repo.fetchByCategoriaEquipo(categoriaEquipoId: catId, from: from, to: to);
+          if (records.isEmpty) {
+            pdf.addPage(pw.Page(pageTheme: pageTheme, build: (ctx) {
+              return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                buildPdfHeader(logoImage, 'Asistencias - ${categoriasMap[catId] ?? catId}'),
+                pw.SizedBox(height: 12),
+                pw.Text('No hay registros de asistencia para esta categoría en el rango seleccionado.', style: const pw.TextStyle(fontSize: 12)),
+              ]);
+            }));
+            continue;
+          }
+
+          // Map jugadorId -> stats
+          final Map<String, Map<String, int>> statsByPlayer = {};
+          for (final r in records) {
+            final jid = r.jugadorId;
+            final present = r.presente ? 1 : 0;
+            final entry = statsByPlayer.putIfAbsent(jid, () => {'sesiones': 0, 'asistencias': 0});
+            entry['sesiones'] = entry['sesiones']! + 1;
+            entry['asistencias'] = entry['asistencias']! + present;
+          }
+
+          final List<List<String>> rows = [];
+          for (final entry in statsByPlayer.entries) {
+            final jid = entry.key;
+            final sesiones = entry.value['sesiones'] ?? 0;
+            final asist = entry.value['asistencias'] ?? 0;
+            final aus = sesiones - asist;
+            final pct = sesiones == 0 ? 0 : ((asist / sesiones) * 100).round();
+            final nombreJugador = jugadoresMap[jid] ?? jid;
+            rows.add([nombreJugador, sesiones.toString(), asist.toString(), aus.toString(), '$pct%']);
+          }
+
+          _addPageWithTable('Asistencias - ${categoriasMap[catId] ?? catId}', ['Jugador', 'Sesiones', 'Asistencias', 'Ausencias', '%'], rows);
+        }
+
+        // incluir categoría "Sin asignar": buscar registros con categoria id vacío
+        final sinAsignar = await repo.fetchByCategoriaEquipo(categoriaEquipoId: '', from: from, to: to);
+        if (sinAsignar.isNotEmpty) {
+          final Map<String, Map<String, int>> statsByPlayer = {};
+          for (final r in sinAsignar) {
+            final jid = r.jugadorId;
+            final present = r.presente ? 1 : 0;
+            final entry = statsByPlayer.putIfAbsent(jid, () => {'sesiones': 0, 'asistencias': 0});
+            entry['sesiones'] = entry['sesiones']! + 1;
+            entry['asistencias'] = entry['asistencias']! + present;
+          }
+          final List<List<String>> rows = [];
+          for (final entry in statsByPlayer.entries) {
+            final jid = entry.key;
+            final sesiones = entry.value['sesiones'] ?? 0;
+            final asist = entry.value['asistencias'] ?? 0;
+            final aus = sesiones - asist;
+            final pct = sesiones == 0 ? 0 : ((asist / sesiones) * 100).round();
+            final nombreJugador = jugadoresMap[jid] ?? jid;
+            rows.add([nombreJugador, sesiones.toString(), asist.toString(), aus.toString(), '$pct%']);
+          }
+          _addPageWithTable('Asistencias - Sin asignar', ['Jugador', 'Sesiones', 'Asistencias', 'Ausencias', '%'], rows);
+        }
+      }
+      // FILTRO: por jugador => generar una página por jugador solicitando asistencias al repo
+      else if (filtro == 'por_jugador') {
+        // obtener lista de jugadores para iterar (puedes limitar si son muchos)
+        final jugadoresSnapshotAll = await FirebaseFirestore.instance.collection('jugadores').get();
+        for (final jd in jugadoresSnapshotAll.docs) {
+          final jugadorId = jd.id;
+          final records = await repo.fetchByJugador(jugadorId: jugadorId, from: from, to: to);
+          if (records.isEmpty) continue;
+
+          // ordenar por fecha asc
+          records.sort((a, b) => a.fecha.compareTo(b.fecha));
+
+          final List<List<String>> rows = records.map((r) {
+            final catIds = r.categoriaEquipoId;
+            final catDisplay = (catIds.isEmpty) ? 'Sin asignar' : (catIds.split(',').map((id) => categoriasMap[id] ?? id).join(', '));
+            final estado = r.presente ? 'Presente' : 'Ausente';
+            return [ '${r.fecha.day.toString().padLeft(2,'0')}/${r.fecha.month.toString().padLeft(2,'0')}/${r.fecha.year}', catDisplay, estado];
+          }).toList();
+
+          final sesiones = records.length;
+          final asist = records.where((r) => r.presente).length;
+          final aus = sesiones - asist;
+          final pct = sesiones == 0 ? 0 : ((asist / sesiones) * 100).round();
+          final nombreJugador = jugadoresMap[jugadorId] ?? jugadorId;
+          final title = 'Asistencias - $nombreJugador';
+
+          pdf.addPage(pw.Page(pageTheme: pageTheme, build: (ctx) {
+            return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              buildPdfHeader(logoImage, title, subtitle: 'Sesiones: $sesiones — Asistencias: $asist — Ausencias: $aus — $pct%'),
+              pw.SizedBox(height: 12),
+              rows.isEmpty ? pw.Text('No hay registros.') : buildPdfTable(['Fecha', 'Categoría', 'Estado', 'Nota'], rows),
+            ]);
+          }));
+        }
+      }
+    }
+
+    // ------------------ Jugadores ------------------
+    if (tipoReporte == 'jugadores') {
+      final categoriasSnapshot = await FirebaseFirestore.instance.collection('categoria_equipo').get();
+      final categoriasMap = Map.fromEntries(
+        categoriasSnapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final cat = (data['categoria'] ?? '').toString();
+          final equipo = ((data['equipo'] ?? data['nombre']) ?? '').toString();
+          final display = equipo.isNotEmpty ? '$cat - $equipo' : cat;
+          return MapEntry(doc.id, display);
+        }),
+      );
+
+      final jugadoresSnapshot = await FirebaseFirestore.instance.collection('jugadores').get();
       final jugadoresRawDocs = jugadoresSnapshot.docs;
 
+      // Agrupar jugadores por cada categoriaEquipoId (soporta "id1,id2")
       final Map<String, List<Map<String, dynamic>>> playersByCatId = {};
       for (final doc in jugadoresRawDocs) {
         final data = doc.data() as Map<String, dynamic>;
-        final key = (data['categoriaEquipoId'] ?? '').toString();
-        final list = playersByCatId.putIfAbsent(key, () => []);
-        list.add({...data, '_id': doc.id});
+        final rawKey = (data['categoriaEquipoId'] ?? '').toString();
+        final ids = rawKey.isEmpty
+            ? [''] // mantengo entrada para sin asignar
+            : rawKey.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        for (final key in ids) {
+          final list = playersByCatId.putIfAbsent(key, () => []);
+          list.add({...data, '_id': doc.id});
+        }
       }
 
       if (filtro == 'por_categoria_equipo') {
@@ -217,32 +316,13 @@ class FiltroReporteScreen extends StatelessWidget {
             final nombres = (j['nombres'] ?? j['nombre'] ?? '').toString();
             final apellido = (j['apellido'] ?? '').toString();
             final ci = (j['ci'] ?? '').toString();
-            final fechaStr =
-                formatDate(j['fechaDeNacimiento'] ?? j['fechaNacimiento']);
+            final fechaStr = formatDate(j['fechaDeNacimiento'] ?? j['fechaNacimiento']);
             final categoriaEquipoNombre = display;
             return [nombres, apellido, ci, fechaStr, categoriaEquipoNombre];
           }).toList();
 
-          pdf.addPage(
-            pw.Page(
-              pageTheme: pageTheme,
-              build: (context) => pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  buildHeader('Jugadores - $display'),
-                  pw.SizedBox(height: 12),
-                  tableData.isEmpty
-                      ? pw.Text('No hay jugadores en esta categoría-equipo.',
-                          style: pw.TextStyle(fontSize: 12))
-                      : _buildTable(
-                          ['Nombre', 'Apellido', 'CI', 'Fecha Nac.', 'Categoría-Equipo'],
-                          tableData,
-                        ),
-                  pw.SizedBox(height: 10),
-                ],
-              ),
-            ),
-          );
+          _addPageWithTable('Jugadores - $display',
+              ['Nombre', 'Apellido', 'CI', 'Fecha Nac.', 'Categoría-Equipo'], tableData);
         }
 
         final unassigned = playersByCatId[''] ?? [];
@@ -256,64 +336,28 @@ class FiltroReporteScreen extends StatelessWidget {
           final nombres = (j['nombres'] ?? j['nombre'] ?? '').toString();
           final apellido = (j['apellido'] ?? '').toString();
           final ci = (j['ci'] ?? '').toString();
-          final fechaStr =
-              formatDate(j['fechaDeNacimiento'] ?? j['fechaNacimiento']);
+          final fechaStr = formatDate(j['fechaDeNacimiento'] ?? j['fechaNacimiento']);
           final catEquipoId = (j['categoriaEquipoId'] ?? '').toString();
-          final categoriaEquipoNombre =
-              categoriasMap[catEquipoId] ?? (j['categoria']?.toString() ?? 'Sin asignar');
+          final categoriaEquipoNombre = categoriasMap[catEquipoId] ?? (j['categoria']?.toString() ?? 'Sin asignar');
           return [nombres, apellido, ci, fechaStr, categoriaEquipoNombre];
         }).toList();
 
-        pdf.addPage(
-          pw.Page(
-            pageTheme: pageTheme,
-            build: (context) => pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                buildHeader('Jugadores - Sin categoría-equipo asignada'),
-                pw.SizedBox(height: 12),
-                remainingTable.isEmpty
-                    ? pw.Text('No hay jugadores sin categoría-equipo.',
-                        style: pw.TextStyle(fontSize: 12))
-                    : _buildTable(
-                        ['Nombre', 'Apellido', 'CI', 'Fecha Nac.', 'Categoría-Equipo'],
-                        remainingTable,
-                      ),
-              ],
-            ),
-          ),
-        );
+        _addPageWithTable('Jugadores - Sin categoría-equipo asignada',
+            ['Nombre', 'Apellido', 'CI', 'Fecha Nac.', 'Categoría-Equipo'], remainingTable);
       } else {
-        final List<List<String>> jugadoresTabla =
-            jugadoresRawDocs.map((doc) {
+        final List<List<String>> jugadoresTabla = jugadoresRawDocs.map((doc) {
           final j = doc.data() as Map<String, dynamic>;
           final nombres = (j['nombres'] ?? j['nombre'] ?? '').toString();
           final apellido = (j['apellido'] ?? '').toString();
           final ci = (j['ci'] ?? '').toString();
-          final fechaStr =
-              formatDate(j['fechaDeNacimiento'] ?? j['fechaNacimiento']);
+          final fechaStr = formatDate(j['fechaDeNacimiento'] ?? j['fechaNacimiento']);
           final categoriaEquipoId = (j['categoriaEquipoId'] ?? '').toString();
-          final categoriaEquipoNombre =
-              categoriasMap[categoriaEquipoId] ?? (j['categoria']?.toString() ?? 'Sin asignar');
+          final categoriaEquipoNombre = categoriasMap[categoriaEquipoId] ?? (j['categoria']?.toString() ?? 'Sin asignar');
           return [nombres, apellido, ci, fechaStr, categoriaEquipoNombre];
         }).toList();
 
-        pdf.addPage(
-          pw.Page(
-            pageTheme: pageTheme,
-            build: (context) => pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                buildHeader('Lista de Jugadores'),
-                pw.SizedBox(height: 20),
-                _buildTable(
-                  ['Nombre', 'Apellido', 'CI', 'Fecha Nac.', 'Categoría-Equipo'],
-                  jugadoresTabla,
-                ),
-              ],
-            ),
-          ),
-        );
+        _addPageWithTable('Lista de Jugadores',
+            ['Nombre', 'Apellido', 'CI', 'Fecha Nac.', 'Categoría-Equipo'], jugadoresTabla);
       }
     }
 
@@ -364,25 +408,8 @@ class FiltroReporteScreen extends StatelessWidget {
         return [nombre, apellido, ci, celular, fechaNac];
       }).toList();
 
-      pdf.addPage(
-        pw.Page(
-          pageTheme: pageTheme,
-          build: (context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              buildHeader('Profesores'),
-              pw.SizedBox(height: 12),
-              profesoresTabla.isEmpty
-                  ? pw.Text('No hay profesores registrados.',
-                      style: pw.TextStyle(fontSize: 12))
-                  : _buildTable(
-                      ['Nombre', 'Apellido', 'CI', 'Celular', 'Fecha Nac.'],
-                      profesoresTabla,
-                    ),
-            ],
-          ),
-        ),
-      );
+      _addPageWithTable('Profesores',
+          ['Nombre', 'Apellido', 'CI', 'Celular', 'Fecha Nac.'], profesoresTabla);
     }
 
     // ------------------ Apoderados ------------------
@@ -413,25 +440,8 @@ class FiltroReporteScreen extends StatelessWidget {
         return [nombreCompleto, ci, celular, usuario, direccion];
       }).toList();
 
-      pdf.addPage(
-        pw.Page(
-          pageTheme: pageTheme,
-          build: (context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              buildHeader('Apoderados'),
-              pw.SizedBox(height: 12),
-              apoderadosTabla.isEmpty
-                  ? pw.Text('No hay apoderados registrados.',
-                      style: pw.TextStyle(fontSize: 12))
-                  : _buildTable(
-                      ['Nombre completo', 'CI', 'Celular', 'Usuario', 'Dirección'],
-                      apoderadosTabla,
-                    ),
-            ],
-          ),
-        ),
-      );
+      _addPageWithTable('Apoderados',
+          ['Nombre completo', 'CI', 'Celular', 'Usuario', 'Dirección'], apoderadosTabla);
     }
 
     return pdf;
@@ -439,6 +449,7 @@ class FiltroReporteScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tipoReporte = widget.tipoReporte;
     // Definir filtros según tipoReporte
     final List<Map<String, String>> filtros;
     if (tipoReporte == 'jugadores') {
@@ -446,6 +457,11 @@ class FiltroReporteScreen extends StatelessWidget {
         {'titulo': 'Todos', 'filtro': 'todos'},
         {'titulo': 'Por categoría-equipo (todas las páginas)', 'filtro': 'por_categoria_equipo'},
         {'titulo': 'Por categoría (seleccionar)', 'filtro': 'por_categoria'},
+      ];
+    } else if (tipoReporte == 'asistencias') {
+      filtros = [
+        {'titulo': 'Por categoría-equipo', 'filtro': 'por_categoria_equipo'},
+        {'titulo': 'Por jugador', 'filtro': 'por_jugador'},
       ];
     } else {
       filtros = [
@@ -467,44 +483,66 @@ class FiltroReporteScreen extends StatelessWidget {
         title: Text('Filtros - ${tipoReporte[0].toUpperCase()}${tipoReporte.substring(1)}'),
       ),
       body: ListView(
-        children: filtros.map((f) {
-          return ListTile(
-            leading: const Icon(Icons.filter_alt),
-            title: Text(f['titulo']!),
-            trailing: const Icon(Icons.picture_as_pdf),
-            onTap: () async {
-              final selectedFiltro = f['filtro']!;
-              // caso especial: seleccionar categoría -> navegar a pantalla de selección
-              if (tipoReporte == 'jugadores' && selectedFiltro == 'por_categoria') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SeleccionarCategoriaScreen(tipoReporte: tipoReporte, filtro: selectedFiltro),
-                  ),
-                );
-                return;
-              }
+        padding: const EdgeInsets.all(12),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.date_range),
+                  label: Text(_from == null ? 'Desde' : '${_from!.day}/${_from!.month}/${_from!.year}'),
+                  onPressed: _pickFrom,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.date_range),
+                  label: Text(_to == null ? 'Hasta' : '${_to!.day}/${_to!.month}/${_to!.year}'),
+                  onPressed: _pickTo,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...filtros.map((f) {
+            return ListTile(
+              leading: const Icon(Icons.filter_alt),
+              title: Text(f['titulo']!),
+              trailing: const Icon(Icons.picture_as_pdf),
+              onTap: () async {
+                final selectedFiltro = f['filtro']!;
+                if (tipoReporte == 'jugadores' && selectedFiltro == 'por_categoria') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SeleccionarCategoriaScreen(tipoReporte: tipoReporte, filtro: selectedFiltro),
+                    ),
+                  );
+                  return;
+                }
 
-              // Mostrar indicador y generar PDF
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) => const Center(child: CircularProgressIndicator()),
-              );
-
-              try {
-                final pdf = await _generarPDF(tipoReporte, selectedFiltro);
-                Navigator.pop(context); // cerrar indicador
-                await Printing.layoutPdf(onLayout: (format) => pdf.save());
-              } catch (e) {
-                Navigator.pop(context); // cerrar indicador
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error al generar el reporte: $e')),
+                // Mostrar indicador y generar PDF
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
                 );
-              }
-            },
-          );
-        }).toList(),
+
+                try {
+                  final pdf = await _generarPDF(tipoReporte, selectedFiltro, _from, _to);
+                  Navigator.pop(context); // cerrar indicador
+                  await Printing.layoutPdf(onLayout: (format) => pdf.save());
+                } catch (e) {
+                  Navigator.pop(context); // cerrar indicador
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al generar el reporte: $e')),
+                  );
+                }
+              },
+            );
+          }).toList(),
+        ],
       ),
     );
   }

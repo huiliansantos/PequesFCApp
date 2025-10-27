@@ -7,6 +7,7 @@ import '../matches/partidos_hijo_screen.dart';
 import '../resultados/resultados_hijo_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../login/login_screen.dart';
+import '../dashboard/admin_dashboard_screen.dart';
 
 class ApoderadoHomeScreen extends StatefulWidget {
   final GuardianModel guardian;
@@ -22,6 +23,7 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
   int _selectedIndex = 0;
 
   static const List<String> _titles = [
+    'Inicio',
     'Asistencia',
     'Pagos',
     'Partidos',
@@ -29,18 +31,20 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
   ];
 
   List<Widget> get _screens => [
-    AsistenciaHijoScreen(hijos: widget.hijos),
-    PagosHijoScreen(hijos: widget.hijos),
-    PartidosHijoScreen(hijos: widget.hijos),
-    ResultadosHijoScreen(hijos: widget.hijos),
-  ];
+        AdminDashboardScreen(),
+        AsistenciaHijoScreen(hijos: widget.hijos),
+        PagosHijoScreen(hijos: widget.hijos),
+        PartidosHijoScreen(hijos: widget.hijos),
+        ResultadosHijoScreen(hijos: widget.hijos),
+      ];
 
   List<Widget> _buildDrawerOptions(BuildContext context) {
     return [
-      _drawerItem(context, Icons.checklist, 'Asistencia', 0),
-      _drawerItem(context, Icons.payment, 'Pagos', 1),
-      _drawerItem(context, Icons.sports_soccer, 'Partidos', 2),
-      _drawerItem(context, Icons.emoji_events, 'Resultados', 3),
+      _drawerItem(context, Icons.dashboard, 'Inicio', 0),
+      _drawerItem(context, Icons.checklist, 'Asistencia', 1),
+      _drawerItem(context, Icons.payment, 'Pagos', 2),
+      _drawerItem(context, Icons.sports_soccer, 'Partidos', 3),
+      _drawerItem(context, Icons.emoji_events, 'Resultados', 4),
     ];
   }
 
@@ -69,7 +73,7 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
               colors: [
                 Color(0xFFD32F2F),
                 Color(0xFFF57C00),
-                        ],
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -85,7 +89,14 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
             iconTheme: const IconThemeData(color: Colors.white),
             actions: [
               IconButton(
-               icon: const Icon(Icons.logout),
+                icon: const Icon(Icons.home),
+                tooltip: 'Inicio',
+                onPressed: () {
+                  setState(() => _selectedIndex = 0);
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout),
                 tooltip: 'Cerrar sesión',
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
@@ -125,14 +136,12 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Escudo de la escuela
                         Image.asset(
                           'assets/peques.png',
                           width: 70,
                           height: 70,
                         ),
                         const SizedBox(height: 12),
-                        // Nombre completo
                         Text(
                           widget.guardian.nombreCompleto,
                           style: const TextStyle(
@@ -143,7 +152,6 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 4),
-                        // Rol
                         const Text(
                           'Apoderado',
                           style: TextStyle(
@@ -183,6 +191,7 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
           unselectedItemColor: Colors.white70,
           type: BottomNavigationBarType.fixed,
           items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
             BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Asistencia'),
             BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Pagos'),
             BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Partidos'),

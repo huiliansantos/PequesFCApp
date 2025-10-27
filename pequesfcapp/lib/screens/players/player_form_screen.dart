@@ -208,7 +208,7 @@ class _PlayerFormScreenState extends ConsumerState<PlayerFormScreen> {
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   final repo = ref.read(categoriaEquipoRepositoryProvider);
-                  await repo.addCategoriaEquipo(
+                  await repo.agregarCategoriaEquipo(
                     CategoriaEquipoModel(
                       id: const Uuid().v4(),
                       categoria: _categoriaController.text,

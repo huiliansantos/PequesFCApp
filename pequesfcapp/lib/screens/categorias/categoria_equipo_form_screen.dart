@@ -7,20 +7,33 @@ import '../../providers/player_provider.dart';
 import '../../widgets/gradient_button.dart';
 
 class CategoriaEquipoFormScreen extends ConsumerStatefulWidget {
-  const CategoriaEquipoFormScreen({Key? key}) : super(key: key);
+  final CategoriaEquipoModel? categoriaEquipo;
+
+  const CategoriaEquipoFormScreen({
+    Key? key,
+    this.categoriaEquipo,
+  }) : super(key: key);
 
   @override
-  ConsumerState<CategoriaEquipoFormScreen> createState() =>
-      _CategoriaEquipoFormScreenState();
+  ConsumerState<CategoriaEquipoFormScreen> createState() => _CategoriaEquipoFormScreenState();
 }
 
-class _CategoriaEquipoFormScreenState
-    extends ConsumerState<CategoriaEquipoFormScreen> {
+class _CategoriaEquipoFormScreenState extends ConsumerState<CategoriaEquipoFormScreen> {
   final _formKey = GlobalKey<FormState>();
   String? categoriaSeleccionada;
   String? equipoSeleccionado;
   final categoriaOtroController = TextEditingController();
   final equipoOtroController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.categoriaEquipo != null) {
+      // Establecer valores iniciales directamente del modelo
+      categoriaSeleccionada = widget.categoriaEquipo!.categoria;
+      equipoSeleccionado = widget.categoriaEquipo!.equipo;
+    }
+  }
 
   @override
   void dispose() {
@@ -42,12 +55,49 @@ class _CategoriaEquipoFormScreenState
         : equipoSeleccionado ?? '';
 
     final model = CategoriaEquipoModel(
-      id: const Uuid().v4(),
+      id: widget.categoriaEquipo?.id ?? const Uuid().v4(),
       categoria: categoriaFinal,
       equipo: equipoFinal,
     );
-    await repo.addCategoriaEquipo(model);
-    if (context.mounted) Navigator.pop(context);
+
+    try {
+      // Mostrar indicador de progreso
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      if (widget.categoriaEquipo != null) {
+        await repo.actualizarCategoriaEquipo(model);
+      } else {
+        await repo.agregarCategoriaEquipo(model);
+      }
+
+      if (context.mounted) {
+        Navigator.pop(context); // Cerrar indicador
+        Navigator.pop(context); // Volver a la lista
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.categoriaEquipo != null
+                ? 'Categoría-equipo actualizada correctamente'
+                : 'Categoría-equipo creada correctamente'),
+            //backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Cerrar indicador
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -56,17 +106,21 @@ class _CategoriaEquipoFormScreenState
 
     return Scaffold(
       appBar: AppBar(
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-          //reducir el tamaño del texto del AppBar
-          title: const Text('Registrar Categoría-Equipo', style: TextStyle(fontSize: 18)),
+        ),
+        title: Text(
+          widget.categoriaEquipo != null 
+              ? 'Modificar Categoría-Equipo'
+              : 'Registrar Categoría-Equipo',
+          style: const TextStyle(fontSize: 18)
+        ),
       ),
       body: jugadoresAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -79,9 +133,22 @@ class _CategoriaEquipoFormScreenState
               .toList()
             ..sort();
 
+          // Asegurar que la categoría actual esté en la lista
+          if (widget.categoriaEquipo != null && 
+              !anos.contains(widget.categoriaEquipo!.categoria)) {
+            anos.add(widget.categoriaEquipo!.categoria);
+            anos.sort();
+          }
+
           final categorias = [...anos, 'Otro'];
 
-          final equipos = ['Equipo A', 'Equipo B', 'Junior', 'Otro'];
+          // Lista de equipos incluyendo el actual si existe
+          final equiposBase = ['Equipo A', 'Equipo B', 'Junior'];
+          if (widget.categoriaEquipo != null && 
+              !equiposBase.contains(widget.categoriaEquipo!.equipo)) {
+            equiposBase.add(widget.categoriaEquipo!.equipo);
+          }
+          final equipos = [...equiposBase, 'Otro'];
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -91,12 +158,12 @@ class _CategoriaEquipoFormScreenState
                 children: [
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
-                        labelText: 'Categoría (año de nacimiento)'),
-                    // ignore: deprecated_member_use
+                      labelText: 'Categoría (año de nacimiento)',
+                      border: OutlineInputBorder(),
+                    ),
                     value: categoriaSeleccionada,
                     items: categorias
-                        .map((cat) =>
-                            DropdownMenuItem(value: cat, child: Text(cat)))
+                        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -106,32 +173,35 @@ class _CategoriaEquipoFormScreenState
                     },
                     validator: (v) => v == null || v.isEmpty
                         ? 'Campo obligatorio'
-                        : (v == 'Otro' &&
-                                categoriaOtroController.text.trim().isEmpty
+                        : (v == 'Otro' && categoriaOtroController.text.trim().isEmpty
                             ? 'Ingresa una nueva categoría'
                             : null),
                   ),
-                  if (categoriaSeleccionada == 'Otro')
+                  if (categoriaSeleccionada == 'Otro') ...[
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: categoriaOtroController,
-                      decoration:
-                          const InputDecoration(labelText: 'Nueva categoría'),
+                      decoration: const InputDecoration(
+                        labelText: 'Nueva categoría',
+                        border: OutlineInputBorder(),
+                      ),
                       keyboardType: TextInputType.number,
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Campo obligatorio';
-                        if (!RegExp(r'^\d+$').hasMatch(v))
-                          return 'Solo números';
+                        if (!RegExp(r'^\d+$').hasMatch(v)) return 'Solo números';
                         return null;
                       },
                     ),
+                  ],
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Equipo'),
-                    // ignore: deprecated_member_use
+                    decoration: const InputDecoration(
+                      labelText: 'Equipo',
+                      border: OutlineInputBorder(),
+                    ),
                     value: equipoSeleccionado,
                     items: equipos
-                        .map((eq) =>
-                            DropdownMenuItem(value: eq, child: Text(eq)))
+                        .map((eq) => DropdownMenuItem(value: eq, child: Text(eq)))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -141,23 +211,25 @@ class _CategoriaEquipoFormScreenState
                     },
                     validator: (v) => v == null || v.isEmpty
                         ? 'Campo obligatorio'
-                        : (v == 'Otro' &&
-                                equipoOtroController.text.trim().isEmpty
+                        : (v == 'Otro' && equipoOtroController.text.trim().isEmpty
                             ? 'Ingresa un nuevo equipo'
                             : null),
                   ),
-                  if (equipoSeleccionado == 'Otro')
+                  if (equipoSeleccionado == 'Otro') ...[
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: equipoOtroController,
-                      decoration:
-                          const InputDecoration(labelText: 'Nuevo equipo'),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Nuevo equipo',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
                     ),
+                  ],
                   const SizedBox(height: 24),
                   GradientButton(
                     onPressed: _guardar,
-                    child: Text('Guardar'),
+                    child: const Text('Guardar'),
                   ),
                 ],
               ),

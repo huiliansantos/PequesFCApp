@@ -7,6 +7,7 @@ import '../../providers/player_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
 import '../../models/categoria_equipo_model.dart';
 import 'modificar_asistencia_screen.dart';
+import '../../widgets/gradient_button.dart';
 
 class RegistroAsistenciaScreen extends ConsumerStatefulWidget {
   final String categoriaEquipoId;
@@ -58,7 +59,7 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
       appBar: AppBar(
         title: const Text('Registro de Asistencia'),
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
                 Color(0xFFD32F2F),
@@ -69,7 +70,6 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
             ),
           ),
         ),
-      
       ),
       body: categoriaEquipoAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -143,8 +143,8 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
                                     child: Row(
                                       crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
-                                        CircleAvatar(
-                                          backgroundImage: const AssetImage('assets/jugador.png'),
+                                        const CircleAvatar(
+                                          backgroundImage: AssetImage('assets/jugador.png'),
                                         ),
                                         const SizedBox(width: 8),
                                         Expanded(
@@ -215,60 +215,70 @@ class _RegistroAsistenciaScreenState extends ConsumerState<RegistroAsistenciaScr
           );
         },
       ),
-      //para ir a ver asistencias
 
-
-      floatingActionButton: (widget.rol == 'admin' || widget.rol == 'profesor')
-        ? FloatingActionButton.extended(
-            backgroundColor: const Color(0xFFD32F2F),
-            icon: Icon(asistenciaYaRegistrada ? Icons.edit : Icons.save),
-            label: Text(asistenciaYaRegistrada ? 'Modificar Asistencia' : 'Guardar Asistencia'),
-            onPressed: () async {
-              if (asistenciaYaRegistrada) {
-                // Navegar a pantalla de modificar asistencia
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ModificarAsistenciaScreen(
-                      categoriaEquipoId: widget.categoriaEquipoId,
-                      entrenamientoId: widget.entrenamientoId,
-                      fecha: widget.fecha,
-                      rol: widget.rol,
-                    ),
+      bottomNavigationBar: (widget.rol == 'admin' || widget.rol == 'profesor')
+        ? SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: GradientButton(
+                  child: Text(
+                    asistenciaYaRegistrada ? 'Modificar Asistencia' : 'Guardar Asistencia',
+                    style: const TextStyle(color: Colors.white),
                   ),
-                );
-              } else {
-                // Guardar asistencia (igual que antes)
-                final jugadores = ref.read(playersProvider).value ?? [];
-                final asistencias = ref.read(asistenciasPorEntrenamientoProvider(widget.entrenamientoId)).value ?? [];
-                final jugadoresFiltrados = jugadores.where((j) {
-                  final yaRegistrado = asistencias.any((a) =>
-                    a.jugadorId == j.id &&
-                    a.fecha.day == widget.fecha.day &&
-                    a.fecha.month == widget.fecha.month &&
-                    a.fecha.year == widget.fecha.year
-                  );
-                  return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
-                }).toList();
-                final repo = ref.read(asistenciaRepositoryProvider);
-                final horaRegistro = DateTime.now();
-                for (final jugador in jugadoresFiltrados) {
-                  final asistencia = AsistenciaModel(
-                    id: const Uuid().v4(),
-                    jugadorId: jugador.id,
-                    entrenamientoId: widget.entrenamientoId,
-                    categoriaEquipoId: widget.categoriaEquipoId,
-                    fecha: widget.fecha,
-                    presente: asistenciaMap[jugador.id] ?? false,
-                    permiso: permisoMap[jugador.id] ?? false,
-                    horaRegistro: horaRegistro,
-                    observacion: null,
-                  );
-                  await repo.registrarAsistencia(asistencia);
-                }
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
+                  onPressed: () async {
+                    if (asistenciaYaRegistrada) {
+                      // Navegar a pantalla de modificar asistencia
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ModificarAsistenciaScreen(
+                            categoriaEquipoId: widget.categoriaEquipoId,
+                            entrenamientoId: widget.entrenamientoId,
+                            fecha: widget.fecha,
+                            rol: widget.rol,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Guardar asistencia
+                    final jugadores = ref.read(playersProvider).value ?? [];
+                    final asistencias = ref.read(asistenciasPorEntrenamientoProvider(widget.entrenamientoId)).value ?? [];
+                    final jugadoresFiltrados = jugadores.where((j) {
+                      final yaRegistrado = asistencias.any((a) =>
+                        a.jugadorId == j.id &&
+                        a.fecha.day == widget.fecha.day &&
+                        a.fecha.month == widget.fecha.month &&
+                        a.fecha.year == widget.fecha.year
+                      );
+                      return j.categoriaEquipoId == widget.categoriaEquipoId && !yaRegistrado;
+                    }).toList();
+
+                    final repo = ref.read(asistenciaRepositoryProvider);
+                    final horaRegistro = DateTime.now();
+                    for (final jugador in jugadoresFiltrados) {
+                      final asistencia = AsistenciaModel(
+                        id: const Uuid().v4(),
+                        jugadorId: jugador.id,
+                        entrenamientoId: widget.entrenamientoId,
+                        categoriaEquipoId: widget.categoriaEquipoId,
+                        fecha: widget.fecha,
+                        presente: asistenciaMap[jugador.id] ?? false,
+                        permiso: permisoMap[jugador.id] ?? false,
+                        horaRegistro: horaRegistro,
+                        observacion: null,
+                      );
+                      await repo.registrarAsistencia(asistencia);
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                ),
+              ),
+            ),
           )
         : null,
     );

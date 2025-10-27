@@ -54,6 +54,12 @@ class _PaymentManagementScreenState
 
   int gestionActual = DateTime.now().year;
 
+  int _getYearFromLabel(String label) {
+    final match = RegExp(r'\d{4}').firstMatch(label);
+    if (match != null) return int.tryParse(match.group(0)!) ?? 0;
+    return 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final jugadoresAsync = ref.watch(playersProvider);
@@ -90,16 +96,18 @@ class _PaymentManagementScreenState
                             height: 48,
                             child: Center(child: Text('Error categorías'))),
                         data: (idToLabel) {
-                          final items = [
-                            const DropdownMenuItem<String>(
-                                value: '', child: Text('Todas las categorías')),
-                            ...idToLabel.entries
-                                .map((e) => DropdownMenuItem<String>(
-                                      value: e.key,
-                                      child: Text(e.value),
-                                    ))
-                                .toList(),
+                          // Ordenar entries por año (categoria) descendente
+                          final entries = idToLabel.entries.toList();
+                          entries.sort((a, b) => _getYearFromLabel(b.value).compareTo(_getYearFromLabel(a.value)));
+
+                          final items = <DropdownMenuItem<String>>[
+                            const DropdownMenuItem<String>(value: '', child: Text('Todas las categorías')),
+                            ...entries.map((e) => DropdownMenuItem<String>(
+                                  value: e.key,
+                                  child: Text(e.value),
+                                )),
                           ];
+
                           return DropdownButton<String>(
                             value: categoriaSeleccionada,
                             hint: const Text('Categoría'),
@@ -120,10 +128,8 @@ class _PaymentManagementScreenState
                       items: const [
                         DropdownMenuItem(value: 'todos', child: Text('Todos')),
                         DropdownMenuItem(value: 'pagado', child: Text('Pagados')),
-                        DropdownMenuItem(
-                            value: 'pendiente', child: Text('Pendientes')),
-                        DropdownMenuItem(
-                            value: 'atrasado', child: Text('Atrasados')),
+                        DropdownMenuItem(value: 'pendiente', child: Text('Pendientes')),
+                        DropdownMenuItem(value: 'atrasado', child: Text('Atrasados')),
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -150,9 +156,18 @@ class _PaymentManagementScreenState
                           j.nombres.toLowerCase().contains(busqueda) ||
                               j.apellido.toLowerCase().contains(busqueda);
                       final coincideCategoria = categoriaSeleccionada == null ||
+                          categoriaSeleccionada == '' ||
                           j.categoriaEquipoId == categoriaSeleccionada;
                       return coincideBusqueda && coincideCategoria;
                     }).toList();
+
+                    // Ordenar jugadores por categoría (año) descendente, si mismo año por apellido asc
+                    jugadoresFiltrados.sort((a, b) {
+                      final ya = _getYearFromLabel(idToLabel[a.categoriaEquipoId] ?? '');
+                      final yb = _getYearFromLabel(idToLabel[b.categoriaEquipoId] ?? '');
+                      if (yb != ya) return yb.compareTo(ya);
+                      return a.apellido.toLowerCase().compareTo(b.apellido.toLowerCase());
+                    });
 
                     if (jugadoresFiltrados.isEmpty) {
                       return const Center(
@@ -170,24 +185,14 @@ class _PaymentManagementScreenState
                               const ListTile(title: Text('Cargando pagos...')),
                           error: (e, _) => ListTile(title: Text('Error: $e')),
                           data: (pagos) {
-                            final pagosFiltrados = estadoSeleccionado == 'todos'
-                                ? pagos
-                                : pagos
-                                    .where((p) => p.estado == estadoSeleccionado)
-                                    .toList();
-
-                            final pagosGestion = pagos
-                                .where((p) => p.anio == gestionActual)
-                                .toList();
+                            // calcular estado del jugador con los pagos del año actual
+                            final pagosGestion = pagos.where((p) => p.anio == gestionActual).toList();
 
                             int ultimoMesPagado = -1;
                             for (var pago in pagosGestion) {
                               if (pago.estado == 'pagado') {
-                                int mesIndex = mesesPendientesPorDefecto
-                                    .indexOf(pago.mes);
-                                if (mesIndex > ultimoMesPagado) {
-                                  ultimoMesPagado = mesIndex;
-                                }
+                                int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
+                                if (mesIndex > ultimoMesPagado) ultimoMesPagado = mesIndex;
                               }
                             }
 
@@ -215,36 +220,41 @@ class _PaymentManagementScreenState
                                 idToLabel[jugador.categoriaEquipoId] ??
                                     'Categoría desconocida';
 
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: estadoColor,
-                                  child: const Icon(Icons.person,
-                                      color: Colors.white),
-                                ),
-                                title: Text(
-                                    '${jugador.nombres} ${jugador.apellido}'),
-                                subtitle: Text('Categoría: $categoriaEquipoNombre'),
-                                trailing: Chip(
-                                  label: Text(estadoTexto,
-                                      style:
-                                          const TextStyle(color: Colors.white)),
-                                  backgroundColor: estadoColor,
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => PaymentHistoryScreen(
-                                        jugadorId: jugador.id,
-                                        jugadorNombre:
-                                            '${jugador.nombres} ${jugador.apellido}',
+                            // aplicar filtro por estado: si no coincide, ocultar el card
+                            final estadoFiltrado = estadoSeleccionado.toLowerCase();
+                            final estadoActualLower = estadoTexto.toLowerCase();
+                            final mostrar = estadoFiltrado == 'todos' ||
+                                (estadoFiltrado == 'pagado' && estadoActualLower == 'pagado') ||
+                                (estadoFiltrado == 'pendiente' && estadoActualLower == 'pendiente') ||
+                                (estadoFiltrado == 'atrasado' && estadoActualLower == 'atrasado');
+
+                            return Visibility(
+                              visible: mostrar,
+                              child: Card(
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: estadoColor,
+                                    child: const Icon(Icons.person, color: Colors.white),
+                                  ),
+                                  title: Text('${jugador.nombres} ${jugador.apellido}'),
+                                  subtitle: Text('Categoría: $categoriaEquipoNombre'),
+                                  trailing: Chip(
+                                    label: Text(estadoTexto, style: const TextStyle(color: Colors.white)),
+                                    backgroundColor: estadoColor,
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => PaymentHistoryScreen(
+                                          jugadorId: jugador.id,
+                                          jugadorNombre: '${jugador.nombres} ${jugador.apellido}',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
+                                    );
+                                  },
+                                ),
                               ),
                             );
                           },

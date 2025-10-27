@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   static const List<String> _adminTitles = [
-    'Bienvenid@',
+    'Bienvenido',
     'Jugadores',
     'Apoderados',
     'Partidos',

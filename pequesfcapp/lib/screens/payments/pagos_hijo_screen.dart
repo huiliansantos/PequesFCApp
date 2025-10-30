@@ -1,172 +1,135 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/player_model.dart';
+import '../../models/categoria_equipo_model.dart';
 import '../../providers/pago_provider.dart';
+import '../../providers/categoria_equipo_provider.dart';
 import 'historial_pagos_hijo_screen.dart';
-class PagosHijoScreen extends ConsumerStatefulWidget {
+
+class PagosHijoScreen extends ConsumerWidget {
   final List<PlayerModel> hijos;
 
   const PagosHijoScreen({Key? key, required this.hijos}) : super(key: key);
 
   @override
-  ConsumerState<PagosHijoScreen> createState() => _PagosHijoScreenState();
-}
-
-class _PagosHijoScreenState extends ConsumerState<PagosHijoScreen> {
-  String busqueda = '';
-  String? categoriaSeleccionada;
-  String estadoSeleccionado = 'todos';
-
-  @override
-  Widget build(BuildContext context) {
-    // Solo los hijos asignados
-    final hijos = widget.hijos;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriasAsync = ref.watch(categoriasEquiposProvider);
+    final currentYear = DateTime.now().year;
+    final currentMonth = DateTime.now().month - 1; // 0-based index
 
     return Scaffold(
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                /*TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar hijo',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+      body: ListView.builder(
+        itemCount: hijos.length,
+        itemBuilder: (context, index) {
+          final hijo = hijos[index];
+          final pagosAsync = ref.watch(pagosPorJugadorProvider(hijo.id));
+
+          return pagosAsync.when(
+            loading: () => const Card(
+              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(title: Text('Cargando pagos...')),
+            ),
+            error: (e, _) => Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(title: Text('Error: $e')),
+            ),
+            data: (pagos) {
+              // Filtrar pagos del año actual
+              final pagosGestion = pagos.where((p) => p.anio == currentYear).toList();
+
+              // Calcular estado de pagos
+              int ultimoMesPagado = -1;
+              for (var pago in pagosGestion.where((p) => p.estado == 'pagado')) {
+                int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
+                if (mesIndex > ultimoMesPagado) {
+                  ultimoMesPagado = mesIndex;
+                }
+              }
+
+              // Calcular estado y meses de deuda
+              final mesesDeuda = currentMonth - ultimoMesPagado;
+              final estadoPago = _calcularEstadoPago(
+                pagosGestion.isEmpty, 
+                ultimoMesPagado, 
+                currentMonth, 
+                mesesDeuda
+              );
+              final estadoColor = estadoPago.$1;
+              final estadoTexto = estadoPago.$2;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: estadoColor,
+                    child: const Icon(Icons.person, color: Colors.white),
                   ),
-                  onChanged: (value) {
-                    setState(() {
-                      busqueda = value.trim().toLowerCase();
-                    });
-                  },
+                  title: Text(
+                    '${hijo.nombres} ${hijo.apellido}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: categoriasAsync.when(
+                    loading: () => const Text('Cargando categoría...'),
+                    error: (_, __) => const Text('Categoría desconocida'),
+                    data: (categorias) {
+                      final categoria = categorias.firstWhere(
+                        (c) => c.id == hijo.categoriaEquipoId,
+                        orElse: () =>  CategoriaEquipoModel(
+                          id: '',
+                          categoria: 'Sin asignar',
+                          equipo: '',
+                        ),
+                      );
+                      return Text(
+                        'Categoría: ${categoria.categoria} - ${categoria.equipo}',
+                        style: const TextStyle(fontSize: 13),
+                      );
+                    },
+                  ),
+                  trailing: Chip(
+                    label: Text(
+                      estadoTexto,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                    backgroundColor: estadoColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HistorialPagosHijoScreen(hijo: hijo),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8),*/
-            
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: hijos.length,
-              itemBuilder: (context, index) {
-                final hijo = hijos[index];
-                if (!(hijo.nombres.toLowerCase().contains(busqueda) ||
-                    hijo.apellido.toLowerCase().contains(busqueda))) {
-                  return const SizedBox.shrink();
-                }
-                if (categoriaSeleccionada != null &&
-                    hijo.categoriaEquipoId != categoriaSeleccionada) {
-                  return const SizedBox.shrink();
-                }
-                final pagosAsync = ref.watch(pagosPorJugadorProvider(hijo.id));
-                return pagosAsync.when(
-                  loading: () =>
-                      const ListTile(title: Text('Cargando pagos...')),
-                  error: (e, _) => ListTile(title: Text('Error: $e')),
-                  data: (pagos) {
-                    // Filtra pagos por estado si corresponde
-                    final pagosFiltrados = estadoSeleccionado == 'todos'
-                        ? pagos
-                        : pagos.where((p) => p.estado == estadoSeleccionado).toList();
-
-                    final pagosGestion = pagos.where((p) => p.anio == DateTime.now().year).toList();
-
-                    // Obtén el índice del último mes pagado
-                    int ultimoMesPagado = -1;
-                    for (var pago in pagosGestion) {
-                      if (pago.estado == 'pagado') {
-                        int mesIndex = mesesPendientesPorDefecto.indexOf(pago.mes);
-                        if (mesIndex > ultimoMesPagado) {
-                          ultimoMesPagado = mesIndex;
-                        }
-                      }
-                    }
-
-                    // Mes actual (0 = Enero, 1 = Febrero, ...)
-                    int mesActual = DateTime.now().month - 1;
-
-                    // Calcula cuántos meses debe hasta el mes actual
-                    int mesesDeuda = mesActual - ultimoMesPagado;
-
-                    // Estado general y color
-                    Color estadoColor;
-                    String estadoTexto;
-
-                    if (pagosGestion.isEmpty) {
-                      estadoColor = Colors.grey;
-                      estadoTexto = 'Sin registro';
-                    } else if (ultimoMesPagado >= mesActual) {
-                      estadoColor = Colors.green;
-                      estadoTexto = 'Pagado';
-                    } else if (mesesDeuda > 3) {
-                      estadoColor = Colors.red;
-                      estadoTexto = 'Atrasado';
-                    } else {
-                      estadoColor = Colors.orange;
-                      estadoTexto = 'Pendiente';
-                    }
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: estadoColor,
-                          child: const Icon(Icons.person, color: Colors.white),
-                        ),
-                        title: Text('${hijo.nombres} ${hijo.apellido}'),
-                        subtitle: FutureBuilder<DocumentSnapshot>(
-                          future: FirebaseFirestore.instance
-                              .collection('categoria_equipo')
-                              .doc(hijo.categoriaEquipoId)
-                              .get(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Text('Cargando categoría...');
-                            }
-                            if (!snapshot.hasData || !snapshot.data!.exists) {
-                              return const Text('Categoría desconocida');
-                            }
-                            final data = snapshot.data!.data()
-                                as Map<String, dynamic>;
-                            return Text(
-                                'Categoría: ${data['categoria']} - ${data['equipo']}');
-                          },
-                        ),
-                        trailing: Chip(
-                          label: Text(estadoTexto,
-                              style: const TextStyle(color: Colors.white, fontSize: 12)),
-                          backgroundColor: estadoColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => HistorialPagosHijoScreen(
-                                hijo: hijo,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+              );
+            },
+          );
+        },
       ),
     );
   }
+
+  (Color, String) _calcularEstadoPago(
+    bool sinRegistros,
+    int ultimoMesPagado,
+    int mesActual,
+    int mesesDeuda,
+  ) {
+    if (sinRegistros) {
+      return (Colors.grey, 'Sin registro');
+    }
+    if (ultimoMesPagado >= mesActual) {
+      return (Colors.green, 'Pagado');
+    }
+    if (mesesDeuda > 3) {
+      return (Colors.red, 'Atrasado');
+    }
+    return (Colors.orange, 'Pendiente');
+  }
 }
 
-// Puedes definir tu lista de meses así:
+// Lista de meses constante
 const List<String> mesesPendientesPorDefecto = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'

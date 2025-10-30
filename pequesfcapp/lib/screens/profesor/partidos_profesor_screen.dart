@@ -1,110 +1,177 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/match_model.dart';
+import '../../models/categoria_equipo_model.dart';
 import '../../providers/match_provider.dart';
+import '../../providers/categoria_equipo_provider.dart';
 
 class PartidosProfesorScreen extends ConsumerStatefulWidget {
+  /// Campo `categoriaEquipoId` del profesor.
+  /// Puede ser:
+  /// - un id único: "6723..."
+  /// - una lista JSON: '["id1","id2"]'
+  /// - varios ids separados por comas: "id1,id2"
   final String categoriaEquipoIdProfesor;
 
-  const PartidosProfesorScreen({Key? key, required this.categoriaEquipoIdProfesor}) : super(key: key);
+  const PartidosProfesorScreen({
+    Key? key,
+    required this.categoriaEquipoIdProfesor,
+  }) : super(key: key);
 
   @override
   ConsumerState<PartidosProfesorScreen> createState() => _PartidosProfesorScreenState();
 }
 
 class _PartidosProfesorScreenState extends ConsumerState<PartidosProfesorScreen> {
-  late String filtro;
+  String filtro = '';
+  List<String> _assignedIds = [];
 
   @override
   void initState() {
     super.initState();
-    filtro = widget.categoriaEquipoIdProfesor; // Por defecto, el equipo del profesor
+    _assignedIds = _parseAssignedIds(widget.categoriaEquipoIdProfesor);
+    // dejar vacío hasta cargar categorías para validar; se ajustará cuando haya items
+    filtro = '';
   }
 
-  Future<String> getCategoriaEquipoNombre(String categoriaEquipoId) async {
-    final doc = await FirebaseFirestore.instance
-        .collection('categoria_equipo')
-        .doc(categoriaEquipoId)
-        .get();
-    if (!doc.exists) return categoriaEquipoId;
-    final data = doc.data()!;
-    return '${data['categoria']} - ${data['equipo']}';
+  List<String> _parseAssignedIds(String raw) {
+    if (raw.trim().isEmpty) return [];
+    try {
+      final parsed = json.decode(raw);
+      if (parsed is List) return parsed.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    } catch (_) {}
+    if (raw.contains(',')) {
+      return raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    }
+    return [raw.trim()];
   }
 
   @override
   Widget build(BuildContext context) {
-    final categoriasStream = FirebaseFirestore.instance.collection('categoria_equipo').snapshots();
-
-    // Selección del provider según filtro
-    final partidosProvider = filtro == 'todos'
-        ? partidosProviderAll
-        : partidosPorCategoriaEquipoProvider(filtro);
+    final categoriasAsync = ref.watch(categoriasEquiposProvider);
+    final partidosAllAsync = ref.watch(partidosProviderAll);
 
     return Scaffold(
-      body: Column(
+        body: Column(
         children: [
-          // Dropdown de filtro
+          // Selector: SOLO las categorías asignadas al profesor (titulo encima)
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: StreamBuilder<QuerySnapshot>(
-              stream: categoriasStream,
-              builder: (context, snapshot) {
-                final categorias = snapshot.hasData
-                    ? snapshot.data!.docs
-                        .map((d) => {
-                              'id': d.id,
-                              'nombre': '${d['categoria']} - ${d['equipo']}'
-                            })
-                        .toList()
-                    : [];
-                return Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: filtro,
-                        items: [
-                          DropdownMenuItem(
-                            value: widget.categoriaEquipoIdProfesor,
-                            child: const Text('Mis equipos'),
-                          ),
-                          const DropdownMenuItem(
-                            value: 'todos',
-                            child: Text('Todos'),
-                          ),
-                          ...categorias
-                              .where((cat) => cat['id'] != widget.categoriaEquipoIdProfesor)
-                              .map((cat) => DropdownMenuItem(
-                                    value: cat['id'],
-                                    child: Text(cat['nombre']),
-                                  )),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            filtro = value!;
-                          });
-                        },
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Mis equipos',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFD32F2F),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                categoriasAsync.when(
+                  loading: () => const SizedBox(
+                    height: 56,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (e, _) => Container(
+                    height: 56,
+                    alignment: Alignment.centerLeft,
+                    child: Text('Error cargando categorías: $e', style: const TextStyle(color: Colors.red)),
+                  ),
+                  data: (categorias) {
+                    // Filtrar solo categorias asignadas
+                    final equiposAsignados = categorias.where((c) => _assignedIds.contains(c.id)).toList();
+
+                    if (equiposAsignados.isEmpty) {
+                      return Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.centerLeft,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: const Text('No tienes equipos asignados', style: TextStyle(color: Colors.grey)),
+                      );
+                    }
+
+                    // Asegurar filtro válido: si no existe, seleccionar 'todos' por defecto
+                    final ids = equiposAsignados.map((e) => e.id).toSet();
+                    if (filtro.isEmpty || (!ids.contains(filtro) && filtro != 'todos')) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => filtro = 'todos'); // por defecto mostrar todos los equipos asignados
+                      });
+                    }
+
+                    final items = <DropdownMenuItem<String>>[];
+                    // opción 'todos' para mostrar partidos de todos los equipos asignados
+                    items.add(const DropdownMenuItem(value: 'todos', child: Text('Todos los equipos')));
+                    // añadir cada equipo asignado
+                    for (final c in equiposAsignados) {
+                      items.add(DropdownMenuItem(value: c.id, child: Text('${c.categoria} - ${c.equipo}')));
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    ),
-                  ],
-                );
-              },
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: ids.contains(filtro) || filtro == 'todos' ? filtro : equiposAsignados.first.id,
+                          items: items,
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => filtro = value);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
+
           // Lista de partidos
           Expanded(
-            child: ref.watch(partidosProvider).when(
+            child: partidosAllAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (partidos) {
+              error: (e, _) => Center(child: Text('Error cargando partidos: $e')),
+              data: (partidosAll) {
+                // map de categorias para nombres rápidos
+                final Map<String, CategoriaEquipoModel> categoriasMap = {
+                  for (var c in (ref.read(categoriasEquiposProvider).maybeWhen(data: (v) => v, orElse: () => <CategoriaEquipoModel>[]))) c.id: c
+                };
+
+                // filtrar partidos según filtro:
+                List<MatchModel> partidos;
+                if (filtro == 'todos') {
+                  // todos los partidos de los equipos asignados
+                  partidos = partidosAll.where((p) => _assignedIds.contains(p.categoriaEquipoId)).toList();
+                } else {
+                  partidos = partidosAll.where((p) => p.categoriaEquipoId == filtro).toList();
+                }
+
                 if (partidos.isEmpty) {
                   return const Center(child: Text('No hay partidos programados.'));
                 }
+
                 partidos.sort((a, b) => b.fecha.compareTo(a.fecha));
+
                 return ListView.builder(
                   itemCount: partidos.length,
                   itemBuilder: (context, index) {
                     final partido = partidos[index];
+                    final cat = categoriasMap[partido.categoriaEquipoId];
+                    final catNombre = cat != null ? '${cat.categoria} - ${cat.equipo}' : partido.categoriaEquipoId;
+
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -129,27 +196,15 @@ class _PartidosProfesorScreenState extends ConsumerState<PartidosProfesorScreen>
                             Row(
                               children: [
                                 Expanded(
-                                  child: FutureBuilder<String>(
-                                    future: getCategoriaEquipoNombre(partido.categoriaEquipoId),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState == ConnectionState.waiting) {
-                                        return const Text('Cargando...');
-                                      }
-                                      return Text(
-                                        snapshot.data ?? partido.categoriaEquipoId,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                        ),
-                                      );
-                                    },
+                                  child: Text(
+                                    catNombre,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
                                   ),
                                 ),
-                                Image.asset(
-                                  'assets/peques.png',
-                                  width: 32,
-                                  height: 32,
-                                ),
+                                Image.asset('assets/peques.png', width: 32, height: 32),
                                 const SizedBox(width: 8),
                                 Text(
                                   partido.hora,
@@ -160,11 +215,7 @@ class _PartidosProfesorScreenState extends ConsumerState<PartidosProfesorScreen>
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Image.asset(
-                                    'assets/rival.png',
-                                    width: 32,
-                                    height: 32,
-                                  ),
+                                Image.asset('assets/rival.png', width: 32, height: 32),
                                 Expanded(
                                   child: Text(
                                     partido.equipoRival,
@@ -180,16 +231,9 @@ class _PartidosProfesorScreenState extends ConsumerState<PartidosProfesorScreen>
                             ),
                             const SizedBox(height: 8),
                             Row(
-                              children: [
-                                const Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 18),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    partido.cancha,
-                                    style: const TextStyle(color: Colors.black54, fontSize: 14),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
+                              children: const [
+                                Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 18),
+                                SizedBox(width: 4),
                               ],
                             ),
                             const SizedBox(height: 4),

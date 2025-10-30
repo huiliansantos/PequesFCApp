@@ -1,23 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/player_model.dart';
 import '../../models/resultado_model.dart';
 import '../../models/match_model.dart';
 import '../../providers/resultado_provider.dart';
 import '../../providers/match_provider.dart';
-
-
-Future<String> getCategoriaEquipoNombre(String categoriaEquipoId) async {
-  if (categoriaEquipoId.isEmpty) return '';
-  final doc = await FirebaseFirestore.instance
-      .collection('categoria_equipo')
-      .doc(categoriaEquipoId)
-      .get();
-  if (!doc.exists) return categoriaEquipoId;
-  final data = doc.data()!;
-  return '${data['categoria'] ?? ''} - ${data['equipo'] ?? ''}';
-}
+import '../../providers/categoria_equipo_provider.dart';
+import '../../models/categoria_equipo_model.dart';
 
 class ResultadosHijoScreen extends ConsumerStatefulWidget {
   final List<PlayerModel> hijos;
@@ -29,7 +18,7 @@ class ResultadosHijoScreen extends ConsumerStatefulWidget {
 }
 
 class _ResultadosHijoScreenState extends ConsumerState<ResultadosHijoScreen> {
-  String filtro = 'mis_hijos'; // 'todas', 'mis_hijos', o categoriaEquipoId
+  String filtro = 'mis_hijos'; // 'todas' o categoriaEquipoId
 
   @override
   Widget build(BuildContext context) {
@@ -41,46 +30,52 @@ class _ResultadosHijoScreenState extends ConsumerState<ResultadosHijoScreen> {
 
     final resultadosAsync = ref.watch(resultadosStreamProvider);
     final partidosAsync = ref.watch(matchesProvider);
-
-    final categoriasStream =
-        FirebaseFirestore.instance.collection('categoria_equipo').snapshots();
+    final categoriasAsync = ref.watch(categoriasEquiposProvider);
 
     return Column(
       children: [
-        // Filtro
+        // Filtro (usa categoriasProvider)
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: StreamBuilder<QuerySnapshot>(
-            stream: categoriasStream,
-            builder: (context, snapshot) {
-              final categorias = snapshot.hasData
-                  ? snapshot.data!.docs
-                      .map((d) => {
-                            'id': d.id,
-                            'nombre': '${d['categoria']} - ${d['equipo']}'
-                          })
-                      .toList()
-                  : [];
+          child: categoriasAsync.when(
+            loading: () => const SizedBox(
+              height: 48,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => Row(
+              children: [
+                Expanded(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: filtro,
+                    items: const [
+                      DropdownMenuItem(value: 'mis_hijos', child: Text('Mis hijos')),
+                      DropdownMenuItem(value: 'todas', child: Text('Todas')),
+                    ],
+                    onChanged: (v) => setState(() { filtro = v ?? 'mis_hijos'; }),
+                  ),
+                ),
+              ],
+            ),
+            data: (categorias) {
+              final dropdownItems = <DropdownMenuItem<String>>[
+                const DropdownMenuItem(value: 'mis_hijos', child: Text('Mis hijos')),
+                const DropdownMenuItem(value: 'todas', child: Text('Todas')),
+                ...categorias.map((cat) => DropdownMenuItem(
+                      value: cat.id,
+                      child: Text('${cat.categoria} - ${cat.equipo}'),
+                    )),
+              ];
               return Row(
                 children: [
                   Expanded(
                     child: DropdownButton<String>(
                       isExpanded: true,
                       value: filtro,
-                      items: [
-                        const DropdownMenuItem(
-                            value: 'mis_hijos', child: Text('Mis hijos')),
-                        const DropdownMenuItem(
-                            value: 'todas', child: Text('Todas')),
-                        ...categorias.map((cat) => DropdownMenuItem(
-                              value: cat['id'],
-                              child: Text(cat['nombre']),
-                            )),
-                      ],
+                      items: dropdownItems,
                       onChanged: (value) {
-                        setState(() {
-                          filtro = value!;
-                        });
+                        if (value == null) return;
+                        setState(() => filtro = value);
                       },
                     ),
                   ),
@@ -89,260 +84,212 @@ class _ResultadosHijoScreenState extends ConsumerState<ResultadosHijoScreen> {
             },
           ),
         ),
+
+        // Contenido: combinar resultados + partidos + categorias
         Expanded(
           child: resultadosAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
-            data: (resultados) => partidosAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (partidos) {
-                // Filtrar resultados según filtro
-                List<ResultadoModel> resultadosFiltrados;
-                if (filtro == 'todas') {
-                  resultadosFiltrados = resultados;
-                } else if (filtro == 'mis_hijos') {
-                  resultadosFiltrados = resultados.where((resultado) {
-                    final partido = partidos.firstWhere(
-                      (p) => p.id == resultado.partidoId,
-                      orElse: () => MatchModel(
-                        id: '',
-                        equipoRival: '',
-                        cancha: '',
-                        fecha: DateTime.now(),
-                        hora: '',
-                        torneo: '',
-                        categoriaEquipoId: '',
-                      ),
-                    );
-                    return idsCategoriaHijos.contains(partido.categoriaEquipoId);
-                  }).toList();
-                } else {
-                  resultadosFiltrados = resultados.where((resultado) {
-                    final partido = partidos.firstWhere(
-                      (p) => p.id == resultado.partidoId,
-                      orElse: () => MatchModel(
-                        id: '',
-                        equipoRival: '',
-                        cancha: '',
-                        fecha: DateTime.now(),
-                        hora: '',
-                        torneo: '',
-                        categoriaEquipoId: '',
-                      ),
-                    );
-                    return partido.categoriaEquipoId == filtro;
-                  }).toList();
-                }
+            error: (e, _) => Center(child: Text('Error resultados: $e')),
+            data: (resultados) {
+              return partidosAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Error partidos: $e')),
+                data: (partidos) {
+                  return categoriasAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error categorías: $e')),
+                    data: (categorias) {
+                      // Mapas para accesos rápidos
+                      final partidosMap = {for (var p in partidos) p.id: p};
+                      final categoriasMap = {for (var c in categorias) c.id: c};
 
-                // ORDENAR POR FECHA DESCENDENTE
-                resultadosFiltrados.sort((a, b) {
-                  final partidoA = partidos.firstWhere(
-                    (p) => p.id == a.partidoId,
-                    orElse: () => MatchModel(
-                      id: '',
-                      equipoRival: '',
-                      cancha: '',
-                      fecha: DateTime.now(),
-                      hora: '',
-                      torneo: '',
-                      categoriaEquipoId: '',
-                    ),
-                  );
-                  final partidoB = partidos.firstWhere(
-                    (p) => p.id == b.partidoId,
-                    orElse: () => MatchModel(
-                      id: '',
-                      equipoRival: '',
-                      cancha: '',
-                      fecha: DateTime.now(),
-                      hora: '',
-                      torneo: '',
-                      categoriaEquipoId: '',
-                    ),
-                  );
-                  return partidoB.fecha.compareTo(partidoA.fecha);
-                });
+                      // Filtrar resultados según filtro
+                      final List<ResultadoModel> resultadosFiltrados = resultados.where((resultado) {
+                        final partido = partidosMap[resultado.partidoId];
+                        if (partido == null) return false; // omitir resultados sin partido conocido
 
-                if (resultadosFiltrados.isEmpty) {
-                  return const Center(child: Text('No hay resultados para mostrar.'));
-                }
+                        if (filtro == 'todas') return true;
+                        if (filtro == 'mis_hijos') return idsCategoriaHijos.contains(partido.categoriaEquipoId);
+                        return partido.categoriaEquipoId == filtro;
+                      }).toList();
 
-                return ListView.builder(
-                  itemCount: resultadosFiltrados.length,
-                  itemBuilder: (context, index) {
-                    final resultado = resultadosFiltrados[index];
-                    final partido = partidos.firstWhere(
-                      (p) => p.id == resultado.partidoId,
-                      orElse: () => MatchModel(
-                        id: '',
-                        equipoRival: '',
-                        cancha: '',
-                        fecha: DateTime.now(),
-                        hora: '',
-                        torneo: '',
-                        categoriaEquipoId: '',
-                      ),
-                    );
+                      // Ordenar por fecha del partido (desc)
+                      resultadosFiltrados.sort((a, b) {
+                        final pa = partidosMap[a.partidoId];
+                        final pb = partidosMap[b.partidoId];
+                        final da = pa?.fecha ?? DateTime.fromMillisecondsSinceEpoch(0);
+                        final db = pb?.fecha ?? DateTime.fromMillisecondsSinceEpoch(0);
+                        return db.compareTo(da);
+                      });
 
-                    // Buscar el hijo correspondiente a este resultado
-                    String? nombreHijo;
-                    if (filtro == 'mis_hijos') {
-                      final hijo = widget.hijos.firstWhere(
-                        (h) => h.categoriaEquipoId == partido.categoriaEquipoId,
-                        orElse: () => PlayerModel(
-                          id: '',
-                          nombres: '',
-                          apellido: '',
-                          categoriaEquipoId: '',
-                          fechaDeNacimiento: DateTime(2000, 1, 1),
-                          genero: '',
-                          foto: '',
-                          ci: '',
-                          nacionalidad: '',
-                        ),
-                      );
-                      if (hijo.id.isNotEmpty) {
-                        nombreHijo = '${hijo.nombres} ${hijo.apellido}';
+                      if (resultadosFiltrados.isEmpty) {
+                        return const Center(child: Text('No hay resultados para mostrar.'));
                       }
-                    }
 
-                    // Marcador y color
-                    final marcador = '${resultado.golesFavor}-${resultado.golesContra}';
-                    Color resultadoColor;
-                    if (resultado.golesFavor > resultado.golesContra) {
-                      resultadoColor = Colors.green;
-                    } else if (resultado.golesFavor == resultado.golesContra) {
-                      resultadoColor = Colors.amber;
-                    } else {
-                      resultadoColor = Colors.red;
-                    }
+                      return ListView.builder(
+                        itemCount: resultadosFiltrados.length,
+                        itemBuilder: (context, index) {
+                          final resultado = resultadosFiltrados[index];
+                          final partido = partidosMap[resultado.partidoId];
+                          // seguridad: si partido es null (aunque filtramos) devolvemos vacío
+                          if (partido == null) return const SizedBox.shrink();
 
-                    return FutureBuilder<String>(
-                      future: getCategoriaEquipoNombre(partido.categoriaEquipoId),
-                      builder: (context, snapshot) {
-                        final categoriaEquipoNombre = snapshot.data ?? partido.categoriaEquipoId;
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 3,
-                          color: Colors.white,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (partido.torneo.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: Text(
-                                      partido.torneo,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFD32F2F),
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                if (nombreHijo != null && nombreHijo.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 4.0),
-                                    child: Text(
-                                      'Hijo: $nombreHijo',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.black87,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                Row(
-                                  children: [
-                                    Expanded(
+                          // Nombre de la categoría
+                          final cat = categoriasMap[partido.categoriaEquipoId];
+                          final categoriaNombre = cat != null ? '${cat.categoria} - ${cat.equipo}' : partido.categoriaEquipoId;
+
+                          // Hijo asociado (primer match por categoría)
+                          String? nombreHijo;
+                          if (filtro == 'mis_hijos') {
+                            final hijo = widget.hijos.firstWhere(
+                              (h) => h.categoriaEquipoId == partido.categoriaEquipoId,
+                              orElse: () => PlayerModel(
+                                id: '',
+                                nombres: '',
+                                apellido: '',
+                                categoriaEquipoId: '',
+                                fechaDeNacimiento: DateTime(2000, 1, 1),
+                                genero: '',
+                                foto: '',
+                                ci: '',
+                                nacionalidad: '',
+                              ),
+                            );
+                            if (hijo.id.isNotEmpty) nombreHijo = '${hijo.nombres} ${hijo.apellido}';
+                          }
+
+                          final marcador = '${resultado.golesFavor}-${resultado.golesContra}';
+                          Color resultadoColor;
+                          if (resultado.golesFavor > resultado.golesContra) {
+                            resultadoColor = Colors.green;
+                          } else if (resultado.golesFavor == resultado.golesContra) {
+                            resultadoColor = Colors.amber;
+                          } else {
+                            resultadoColor = Colors.red;
+                          }
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 3,
+                            color: Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (partido.torneo.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8.0),
                                       child: Text(
-                                        categoriaEquipoNombre,
+                                        partido.torneo,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                                          color: Color(0xFFD32F2F),
+                                          fontSize: 14,
                                         ),
                                       ),
                                     ),
-                                    Image.asset(
-                                      'assets/peques.png',
-                                      width: 32,
-                                      height: 32,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: resultadoColor,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
+                                  if (nombreHijo != null && nombreHijo.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4.0),
                                       child: Text(
-                                        marcador,
+                                        'Hijo: $nombreHijo',
                                         style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Image.asset(
-                                      'assets/rival.png',
-                                      width: 32,
-                                      height: 32,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        partido.equipoRival,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w500,
                                           color: Colors.black87,
                                           fontSize: 13,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 16),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        partido.cancha,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          categoriaNombre,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      Image.asset(
+                                        'assets/peques.png',
+                                        width: 32,
+                                        height: 32,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: resultadoColor,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          marcador,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Image.asset(
+                                        'assets/rival.png',
+                                        width: 32,
+                                        height: 32,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          partido.equipoRival,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                            fontSize: 13,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 16),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          partido.cancha,
+                                          style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today, color: Color(0xFFD32F2F), size: 16),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year}',
                                         style: const TextStyle(color: Colors.black54, fontSize: 12),
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today, color: Color(0xFFD32F2F), size: 16),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year}',
-                                      style: const TextStyle(color: Colors.black54, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              );
+            },
           ),
         ),
       ],

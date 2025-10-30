@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/player_model.dart';
+import '../../models/categoria_equipo_model.dart';
 import '../../providers/asistencia_provider.dart';
+import '../../providers/categoria_equipo_provider.dart';  // Añadir este import
 import 'detalle_asistencia_hijo_screen.dart';
 
 class AsistenciaHijoScreen extends ConsumerWidget {
@@ -12,12 +13,15 @@ class AsistenciaHijoScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final categoriasAsync = ref.watch(categoriasEquiposProvider);  // Usar el provider
+
     return Scaffold(
       body: ListView.builder(
         itemCount: hijos.length,
         itemBuilder: (context, index) {
           final hijo = hijos[index];
           final asistenciasAsync = ref.watch(asistenciasPorJugadorProvider(hijo.id));
+          
           return asistenciasAsync.when(
             loading: () => const ListTile(title: Text('Cargando asistencias...')),
             error: (e, _) => ListTile(title: Text('Error: $e')),
@@ -25,6 +29,7 @@ class AsistenciaHijoScreen extends ConsumerWidget {
               final totalAsistencias = asistencias.where((a) => a.presente == true && a.permiso != true).length;
               final totalFaltas = asistencias.where((a) => a.presente == false && a.permiso != true).length;
               final totalPermisos = asistencias.where((a) => a.permiso == true).length;
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: InkWell(
@@ -44,34 +49,35 @@ class AsistenciaHijoScreen extends ConsumerWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        //poner foto del jugador si tiene, sino poner imagen por defecto jugador.png
-                        CircleAvatar(
+                        const CircleAvatar(
                           radius: 30,
-                          backgroundImage:  AssetImage('assets/jugador.png'),
+                          backgroundImage: AssetImage('assets/jugador.png'),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${hijo.nombres} ${hijo.apellido}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                              Text(
+                                '${hijo.nombres} ${hijo.apellido}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)
+                              ),
                               const SizedBox(height: 2),
-                              FutureBuilder<DocumentSnapshot>(
-                                future: FirebaseFirestore.instance
-                                    .collection('categoria_equipo')
-                                    .doc(hijo.categoriaEquipoId)
-                                    .get(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Text('Cargando categoría...');
-                                  }
-                                  if (!snapshot.hasData || !snapshot.data!.exists) {
-                                    return const Text('Categoría desconocida');
-                                  }
-                                  final data = snapshot.data!.data() as Map<String, dynamic>;
+                              // Reemplazar FutureBuilder por AsyncValue de Riverpod
+                              categoriasAsync.when(
+                                loading: () => const Text('Cargando categoría...'),
+                                error: (e, _) => const Text('Categoría desconocida'),
+                                data: (categorias) {
+                                  final categoria = categorias.firstWhere(
+                                    (c) => c.id == hijo.categoriaEquipoId,
+                                    orElse: () =>  CategoriaEquipoModel(
+                                      id: '',
+                                      categoria: 'Sin asignar',
+                                      equipo: '',
+                                    ),
+                                  );
                                   return Text(
-                                    'Categoría: ${data['categoria']} - ${data['equipo']}',
+                                    'Categoría: ${categoria.categoria} - ${categoria.equipo}',
                                     style: const TextStyle(fontSize: 14, color: Colors.black54),
                                   );
                                 },
@@ -84,10 +90,18 @@ class AsistenciaHijoScreen extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            //asistencias color verde, faltas color rojo, permisos color naranja
-                            Text('Asistencias: $totalAsistencias', style: const TextStyle(fontSize: 12, color: Colors.green)),
-                            Text('Faltas: $totalFaltas', style: const TextStyle(fontSize: 12, color: Colors.red)),
-                            Text('Permisos: $totalPermisos', style: const TextStyle(fontSize: 12, color: Colors.orange)),
+                            Text(
+                              'Asistencias: $totalAsistencias',
+                              style: const TextStyle(fontSize: 12, color: Colors.green)
+                            ),
+                            Text(
+                              'Faltas: $totalFaltas',
+                              style: const TextStyle(fontSize: 12, color: Colors.red)
+                            ),
+                            Text(
+                              'Permisos: $totalPermisos',
+                              style: const TextStyle(fontSize: 12, color: Colors.orange)
+                            ),
                             const SizedBox(height: 4),
                             const Icon(Icons.arrow_forward_ios, size: 16),
                           ],

@@ -1,3 +1,4 @@
+import 'package:PequesFCApp/screens/reportes/menu_reportes_screen.dart';
 import 'package:PequesFCApp/screens/results/resultados_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -67,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     CategoriaListScreen(), // <-- Aquí va la lista de categorías-equipos
     ProfesorListScreen(),
     TorneoListScreen(),
-    ReportesScreen(),
+    MenuReportesScreen(),
   ];
 
   static const List<String> _apoderadoTitles = [
@@ -87,11 +88,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ResultadosListScreen(),
         PaymentManagementScreen(),
         ReporteAsistenciaScreen(jugadorId: widget.jugadorId ?? ''),
-        ReportesScreen(),
+        MenuReportesScreen(),
       ];
 
   List<BottomNavigationBarItem> get _navItems => widget.role == 'admin'
       ? [
+          
           const BottomNavigationBarItem(
               icon: Icon(Icons.people), label: 'Jugadores'),
           const BottomNavigationBarItem(
@@ -159,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (title == 'Reportes') {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const ReportesScreen()),
+            MaterialPageRoute(builder: (_) => const MenuReportesScreen()),
           );
         } else if (title == 'Categorías-Equipos') {
           setState(() {

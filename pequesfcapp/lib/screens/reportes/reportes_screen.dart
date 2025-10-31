@@ -8,7 +8,10 @@ import 'seleccionar_categoria_screen.dart';
 import 'pdf_helper.dart';
 
 class ReportesScreen extends StatelessWidget {
-  const ReportesScreen({Key? key}) : super(key: key);
+    final String tipoReporte;
+  final String? filtros;
+
+  const ReportesScreen({Key? key, required this.tipoReporte, this.filtros}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +20,8 @@ class ReportesScreen extends StatelessWidget {
       {'titulo': 'Profesores', 'tipo': 'profesores'},
       {'titulo': 'Apoderados', 'tipo': 'apoderados'},
       {'titulo': 'Asistencias', 'tipo': 'asistencias'},
-      {'titulo': 'Pagos', 'tipo': 'pagos'},
+      {'titulo': 'Estado de Pagos', 'tipo': 'pagos_estado'},
+      {'titulo': 'Pagos por Jugador', 'tipo': 'pagos_jugador'},
     ];
 
     return Scaffold(
@@ -33,23 +37,28 @@ class ReportesScreen extends StatelessWidget {
         ),
         title: const Text('Reportes PDF'),
       ),
-      body: ListView(
-        children: reportes
-            .map((reporte) => ListTile(
-                  leading: const Icon(Icons.picture_as_pdf),
-                  title: Text(reporte['titulo']!),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            FiltroReporteScreen(tipoReporte: reporte['tipo']!),
-                      ),
-                    );
-                  },
-                ))
-            .toList(),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: reportes.length,
+        itemBuilder: (context, index) {
+          final reporte = reportes[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Color(0xFFD32F2F)),
+              title: Text(reporte['titulo']!),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FiltroReporteScreen(tipoReporte: reporte['tipo']!),
+                  ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -442,6 +451,90 @@ class _FiltroReporteScreenState extends State<FiltroReporteScreen> {
 
       _addPageWithTable('Apoderados',
           ['Nombre completo', 'CI', 'Celular', 'Usuario', 'Dirección'], apoderadosTabla);
+    }
+
+    // ------------------ Pagos ------------------
+    else if (tipoReporte == 'pagos_estado' || tipoReporte == 'pagos_jugador') {
+      // Obtener datos necesarios
+      final pagosSnapshot = await FirebaseFirestore.instance.collection('pagos').get();
+      final jugadoresSnapshot = await FirebaseFirestore.instance.collection('jugadores').get();
+      
+      // Crear mapa de jugadores para acceso rápido
+      final jugadoresMap = {
+        for (var doc in jugadoresSnapshot.docs)
+          doc.id: {
+            'nombres': doc.data()['nombres'] ?? '',
+            'apellido': doc.data()['apellido'] ?? '',
+            'categoriaEquipoId': doc.data()['categoriaEquipoId'] ?? '',
+          }
+      };
+
+      // Procesar pagos con información de jugador
+      final pagos = pagosSnapshot.docs.map((doc) {
+        final data = doc.data();
+        final jugador = jugadoresMap[data['jugadorId']] ?? {};
+        return {
+          ...data,
+          'id': doc.id,
+          'nombreCompleto': '${jugador['nombres']} ${jugador['apellido']}',
+          'categoriaEquipoId': jugador['categoriaEquipoId'],
+        };
+      }).toList();
+
+      if (tipoReporte == 'pagos_estado') {
+        // Agrupar por estado
+        final porEstado = <String, List<Map<String, dynamic>>>{};
+        for (final pago in pagos) {
+          final estado = (pago['estado'] ?? 'pendiente').toString();
+          porEstado.putIfAbsent(estado, () => []).add(pago);
+        }
+
+        // Una página por estado
+        for (final estado in porEstado.keys) {
+          final pagosFiltrados = porEstado[estado]!;
+          final rows = pagosFiltrados.map((p) => [
+            p['nombreCompleto'].toString(),
+            formatDate(p['fechaPago']),
+            (p['mes'] ?? '').toString(),
+            'Bs. ${(p['monto'] ?? 0).toString()}',
+          ]).toList();
+
+          _addPageWithTable(
+            'Pagos - Estado: ${estado[0].toUpperCase()}${estado.substring(1)}',
+            ['Jugador', 'Fecha', 'Mes', 'Monto'],
+            rows
+          );
+        }
+      } else {
+        // Agrupar por jugador
+        final porJugador = <String, List<Map<String, dynamic>>>{};
+        for (final pago in pagos) {
+          final jugadorId = pago['jugadorId']?.toString() ?? '';
+          if (jugadorId.isNotEmpty) {
+            porJugador.putIfAbsent(jugadorId, () => []).add(pago);
+          }
+        }
+
+        // Una página por jugador
+        for (final jugadorId in porJugador.keys) {
+          final pagosFiltrados = porJugador[jugadorId]!;
+          final jugadorInfo = jugadoresMap[jugadorId];
+          final nombreJugador = '${jugadorInfo?['nombres'] ?? ''} ${jugadorInfo?['apellido'] ?? ''}'.trim();
+          
+          final rows = pagosFiltrados.map((p) => [
+            formatDate(p['fechaPago']),
+            (p['mes'] ?? '').toString(),
+            'Bs. ${(p['monto'] ?? 0).toString()}',
+            (p['estado'] ?? 'pendiente').toString(),
+          ]).toList();
+
+          _addPageWithTable(
+            'Pagos - $nombreJugador',
+            ['Fecha', 'Mes', 'Monto', 'Estado'],
+            rows
+          );
+        }
+      }
     }
 
     return pdf;

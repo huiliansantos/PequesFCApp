@@ -5,6 +5,7 @@ import '../../models/match_model.dart';
 import '../../models/categoria_equipo_model.dart';
 import '../../providers/match_provider.dart';
 import '../../providers/categoria_equipo_provider.dart';
+import '../../providers/resultado_provider.dart';
 
 class PartidosProfesorScreen extends ConsumerStatefulWidget {
   /// Campo `categoriaEquipoId` del profesor.
@@ -50,10 +51,11 @@ class _PartidosProfesorScreenState extends ConsumerState<PartidosProfesorScreen>
   @override
   Widget build(BuildContext context) {
     final categoriasAsync = ref.watch(categoriasEquiposProvider);
-    final partidosAllAsync = ref.watch(partidosProviderAll);
+    final partidosAsync = ref.watch(partidosProviderAll);
+    final resultadosAsync = ref.watch(resultadosStreamProvider); // Add this line
 
     return Scaffold(
-        body: Column(
+      body: Column(
         children: [
           // Selector: SOLO las categorías asignadas al profesor (titulo encima)
           Padding(
@@ -141,115 +143,151 @@ class _PartidosProfesorScreenState extends ConsumerState<PartidosProfesorScreen>
 
           // Lista de partidos
           Expanded(
-            child: partidosAllAsync.when(
+            child: partidosAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error cargando partidos: $e')),
-              data: (partidosAll) {
-                // map de categorias para nombres rápidos
-                final Map<String, CategoriaEquipoModel> categoriasMap = {
-                  for (var c in (ref.read(categoriasEquiposProvider).maybeWhen(data: (v) => v, orElse: () => <CategoriaEquipoModel>[]))) c.id: c
-                };
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (partidos) {
+                return resultadosAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                  data: (resultados) {
+                    // Obtener IDs de partidos que ya tienen resultados
+                    final partidosConResultados = resultados.map((r) => r.partidoId).toSet();
 
-                // filtrar partidos según filtro:
-                List<MatchModel> partidos;
-                if (filtro == 'todos') {
-                  // todos los partidos de los equipos asignados
-                  partidos = partidosAll.where((p) => _assignedIds.contains(p.categoriaEquipoId)).toList();
-                } else {
-                  partidos = partidosAll.where((p) => p.categoriaEquipoId == filtro).toList();
-                }
+                    // Filtrar partidos:
+                    // 1. Solo los del equipo seleccionado (o todos si filtro == 'todos')
+                    // 2. Excluir los que ya tienen resultados
+                    var partidosFiltrados = partidos.where((partido) {
+                      // Verificar si corresponde al filtro seleccionado
+                      final perteneceAlFiltro = filtro == 'todos'
+                          ? _assignedIds.contains(partido.categoriaEquipoId)
+                          : partido.categoriaEquipoId == filtro;
 
-                if (partidos.isEmpty) {
-                  return const Center(child: Text('No hay partidos programados.'));
-                }
+                      // No mostrar si ya tiene resultado registrado
+                      final noTieneResultado = !partidosConResultados.contains(partido.id);
 
-                partidos.sort((a, b) => b.fecha.compareTo(a.fecha));
+                      return perteneceAlFiltro && noTieneResultado;
+                    }).toList();
 
-                return ListView.builder(
-                  itemCount: partidos.length,
-                  itemBuilder: (context, index) {
-                    final partido = partidos[index];
-                    final cat = categoriasMap[partido.categoriaEquipoId];
-                    final catNombre = cat != null ? '${cat.categoria} - ${cat.equipo}' : partido.categoriaEquipoId;
+                    // Ordenar por fecha
+                    partidosFiltrados.sort((a, b) => a.fecha.compareTo(b.fecha));
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                    if (partidosFiltrados.isEmpty) {
+                      return const Center(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (partido.torneo.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Text(
-                                  partido.torneo,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFD32F2F),
-                                    fontSize: 16,
-                                  ),
-                                ),
+                            Icon(
+                              Icons.sports_soccer_outlined,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No hay partidos pendientes',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 16,
                               ),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    catNombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ),
-                                Image.asset('assets/peques.png', width: 32, height: 32),
-                                const SizedBox(width: 8),
-                                Text(
-                                  partido.hora,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFF57C00),
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Image.asset('assets/rival.png', width: 32, height: 32),
-                                Expanded(
-                                  child: Text(
-                                    partido.equipoRival,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                      fontSize: 15,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: const [
-                                Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 18),
-                                SizedBox(width: 4),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today, color: Color(0xFFD32F2F), size: 18),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year}',
-                                  style: const TextStyle(color: Colors.black54, fontSize: 14),
-                                ),
-                              ],
                             ),
                           ],
                         ),
-                      ),
+                      );
+                    }
+
+                    // map de categorias para nombres rápidos
+                    final Map<String, CategoriaEquipoModel> categoriasMap = {
+                      for (var c in (ref.read(categoriasEquiposProvider).maybeWhen(data: (v) => v, orElse: () => <CategoriaEquipoModel>[]))) c.id: c
+                    };
+
+                    // Resto del código para mostrar la lista...
+                    return ListView.builder(
+                      itemCount: partidosFiltrados.length,
+                      itemBuilder: (context, index) {
+                        final partido = partidosFiltrados[index];
+                        final cat = categoriasMap[partido.categoriaEquipoId];
+                        final catNombre = cat != null ? '${cat.categoria} - ${cat.equipo}' : partido.categoriaEquipoId;
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 4,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (partido.torneo.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: Text(
+                                      partido.torneo,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFFD32F2F),
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        catNombre,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                    Image.asset('assets/peques.png', width: 32, height: 32),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      partido.hora,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFFF57C00),
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Image.asset('assets/rival.png', width: 32, height: 32),
+                                    Expanded(
+                                      child: Text(
+                                        partido.equipoRival,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                          fontSize: 15,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: const [
+                                    Icon(Icons.location_on, color: Color(0xFFD32F2F), size: 18),
+                                    SizedBox(width: 4),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today, color: Color(0xFFD32F2F), size: 18),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Fecha: ${partido.fecha.day}/${partido.fecha.month}/${partido.fecha.year}',
+                                      style: const TextStyle(color: Colors.black54, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );

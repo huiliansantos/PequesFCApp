@@ -80,11 +80,23 @@ class _MatchFormScreenState extends ConsumerState<MatchFormScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final now = DateTime.now();
+    // Si estamos registrando (widget.match == null) no permitir días pasados:
+    final firstDate = widget.match == null
+        ? DateTime(now.year, now.month, now.day) // hoy (sin hora)
+        : DateTime.now().subtract(const Duration(days: 365)); // al editar permitir fechas recientes pasadas (ajustable)
+
+    final lastDate = DateTime.now().add(const Duration(days: 365));
+    // initialDate debe estar entre firstDate y lastDate
+    DateTime initial = fecha ?? now;
+    if (initial.isBefore(firstDate)) initial = firstDate;
+    if (initial.isAfter(lastDate)) initial = lastDate;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: fecha ?? DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
       locale: const Locale('es', 'ES'),
     );
     if (picked != null) {

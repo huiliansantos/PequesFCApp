@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/guardian_model.dart';
 import '../../models/player_model.dart';
+import '../../widgets/apoderado_drawer.dart';  // ✅ AGREGADO
+import '../../services/auth_service.dart';  // ✅ AGREGADO
 import '../asistencias/asistencia_hijo_screen.dart';
 import '../payments/pagos_hijo_screen.dart';
 import '../matches/partidos_hijo_screen.dart';
 import '../resultados/resultados_hijo_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../login/login_screen.dart';
 import '../dashboard/admin_dashboard_screen.dart';
 
 class ApoderadoHomeScreen extends StatefulWidget {
-  final GuardianModel guardian;
-  final List<PlayerModel> hijos;
+  final Map<String, dynamic> guardian;  // ✅ CAMBIO: Map en lugar de GuardianModel
+  final List<dynamic> hijos;  // ✅ CAMBIO: List<dynamic> en lugar de List<PlayerModel>
 
-  const ApoderadoHomeScreen({Key? key, required this.guardian, required this.hijos}) : super(key: key);
+  const ApoderadoHomeScreen({
+    Key? key,
+    required this.guardian,
+    required this.hijos,
+  }) : super(key: key);
 
   @override
   State<ApoderadoHomeScreen> createState() => _ApoderadoHomeScreenState();
@@ -21,6 +27,22 @@ class ApoderadoHomeScreen extends StatefulWidget {
 
 class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
   int _selectedIndex = 0;
+  late GuardianModel guardianModel;  // ✅ AGREGADO
+  late List<PlayerModel> hijosModel;  // ✅ AGREGADO
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ AGREGADO: Convertir Map a GuardianModel
+    guardianModel = GuardianModel.fromMap(widget.guardian);
+    // ✅ AGREGADO: Convertir List<dynamic> a List<PlayerModel>
+    hijosModel = (widget.hijos as List<dynamic>)
+        .map((h) => h is PlayerModel
+            ? h
+            : PlayerModel.fromMap(h as Map<String, dynamic>))
+        .toList();
+    debugPrint('✅ ApoderadoHomeScreen inicializado: ${guardianModel.nombreCompleto}');
+  }
 
   static const List<String> _titles = [
     'Inicio',
@@ -31,12 +53,12 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
   ];
 
   List<Widget> get _screens => [
-        AdminDashboardScreen(),
-        AsistenciaHijoScreen(hijos: widget.hijos),
-        PagosHijoScreen(hijos: widget.hijos),
-        PartidosHijoScreen(hijos: widget.hijos),
-        ResultadosHijoScreen(hijos: widget.hijos),
-      ];
+    AdminDashboardScreen(),
+    AsistenciaHijoScreen(hijos: hijosModel),  // ✅ CAMBIO: hijosModel
+    PagosHijoScreen(hijos: hijosModel),  // ✅ CAMBIO: hijosModel
+    PartidosHijoScreen(hijos: hijosModel),  // ✅ CAMBIO: hijosModel
+    ResultadosHijoScreen(hijos: hijosModel),  // ✅ CAMBIO: hijosModel
+  ];
 
   List<Widget> _buildDrawerOptions(BuildContext context) {
     return [
@@ -48,9 +70,12 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
     ];
   }
 
-  Widget _drawerItem(BuildContext context, IconData icon, String title, int index) {
+  Widget _drawerItem(
+      BuildContext context, IconData icon, String title, int index) {
     return ListTile(
-      leading: Icon(icon, color: _selectedIndex == index ? const Color(0xFFD32F2F) : Colors.grey),
+      leading: Icon(icon,
+          color:
+              _selectedIndex == index ? const Color(0xFFD32F2F) : Colors.grey),
       title: Text(title),
       selected: _selectedIndex == index,
       onTap: () {
@@ -62,143 +87,184 @@ class _ApoderadoHomeScreenState extends State<ApoderadoHomeScreen> {
     );
   }
 
+  // ✅ Pantalla de Hijos
+  Widget _buildHijosScreen() {
+    return hijosModel.isEmpty  // ✅ CAMBIO: hijosModel
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.people_outline,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No tienes hijos registrados',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: hijosModel.length,  // ✅ CAMBIO: hijosModel
+            itemBuilder: (context, index) {
+              final hijo = hijosModel[index];  // ✅ CAMBIO: hijosModel
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Text(hijo.iniciales),
+                  ),
+                  title: Text(hijo.nombreCompleto),
+                  subtitle: Text(
+                    'Edad: ${hijo.edad} años\nGrado: ${hijo.grado}',
+                  ),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () {
+                    // TODO: Ver detalles del hijo
+                  },
+                ),
+              );
+            },
+          );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Color(0xFFD32F2F),
-                Color(0xFFF57C00),
+    // ✅ AGREGADO: StreamBuilder para datos en tiempo real
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('guardianes')
+          .doc(guardianModel.id)
+          .snapshots(includeMetadataChanges: true),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data();
+          if (data != null) {
+            guardianModel =
+                GuardianModel.fromMap(data..['id'] = guardianModel.id);
+          }
+        }
+
+        return Scaffold(
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(56),
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFFD32F2F),
+                    Color(0xFFF57C00),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: Text(
+                  _titles[_selectedIndex],
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                centerTitle: true,
+                iconTheme: const IconThemeData(color: Colors.white),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.home),
+                    tooltip: 'Inicio',
+                    onPressed: () {
+                      setState(() => _selectedIndex = 0);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    tooltip: 'Cerrar sesión',
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('¿Cerrar sesión?'),
+                          content: const Text(
+                              '¿Estás seguro de que deseas cerrar sesión?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Cerrar sesión'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        // ✅ CAMBIO: Usar AuthService en lugar de FirebaseAuth
+                        await AuthService.cerrarSesion();
+                        if (context.mounted) {
+                          Navigator.of(context).pushNamedAndRemoveUntil(
+                            '/login',
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ✅ CAMBIO: Pasar onMenuItemSelected callback
+          drawer: ApoderadoDrawer(
+            guardian: guardianModel,
+            onMenuItemSelected: (index) {
+              setState(() => _selectedIndex = index);
+            },
+          ),
+          body: _screens[_selectedIndex],
+          bottomNavigationBar: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFD32F2F),
+                  Color(0xFFF57C00),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: BottomNavigationBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              currentIndex: _selectedIndex,
+              onTap: (i) => setState(() => _selectedIndex = i),
+              selectedItemColor: Colors.white,
+              unselectedItemColor: Colors.white70,
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.home), label: 'Inicio'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.checklist), label: 'Asistencia'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.payment), label: 'Pagos'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.sports_soccer), label: 'Partidos'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.emoji_events), label: 'Resultados'),
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
             ),
           ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            title: Text(
-              _titles[_selectedIndex],
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            centerTitle: true,
-            iconTheme: const IconThemeData(color: Colors.white),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.home),
-                tooltip: 'Inicio',
-                onPressed: () {
-                  setState(() => _selectedIndex = 0);
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Cerrar sesión',
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      drawer: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.75,
-        child: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFFD32F2F),
-                      Color(0xFFF57C00),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: DrawerHeader(
-                  padding: EdgeInsets.zero,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/peques.png',
-                          width: 70,
-                          height: 70,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.guardian.nombreCompleto,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Apoderado',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 15,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              ..._buildDrawerOptions(context),
-            ],
-          ),
-        ),
-      ),
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFD32F2F),
-              Color(0xFFF57C00),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          currentIndex: _selectedIndex,
-          onTap: (i) => setState(() => _selectedIndex = i),
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white70,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-            BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Asistencia'),
-            BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Pagos'),
-            BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Partidos'),
-            BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Resultados'),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

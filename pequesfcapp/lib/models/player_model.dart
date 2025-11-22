@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 // Modelo PlayerModel para representar un jugador con:
 // id, nombres, apellido, fechaDeNacimiento, lugarDeNacimiento, genero, foto (opcional), guardianId (opcional)
 
@@ -29,6 +31,57 @@ class PlayerModel {
     this.estadoPago,
     required this.categoriaEquipoId,
   });
+
+  // ✅ AGREGADO: Getter para nombre completo
+  String get nombreCompleto => '$nombres $apellido';
+
+  // ✅ AGREGADO: Getter para edad
+  int get edad {
+    final hoy = DateTime.now();
+    int anos = hoy.year - fechaDeNacimiento.year;
+    if (hoy.month < fechaDeNacimiento.month ||
+        (hoy.month == fechaDeNacimiento.month &&
+            hoy.day < fechaDeNacimiento.day)) {
+      anos--;
+    }
+    return anos;
+  }
+
+  // ✅ AGREGADO: Getter para grado (basado en edad)
+  String get grado {
+    switch (edad) {
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+        return 'Pre-escolar';
+      case 4:
+      case 5:
+        return 'Kinder';
+      case 6:
+      case 7:
+      case 8:
+      case 9:
+        return 'Primaria (${edad - 5}°)';
+      case 10:
+      case 11:
+      case 12:
+      case 13:
+      case 14:
+      case 15:
+      case 16:
+      case 17:
+        return 'Secundaria (${edad - 9}°)';
+      default:
+        return 'Adulto';
+    }
+  }
+
+  // ✅ AGREGADO: Getter para nombre corto
+  String get nombre => nombres;
+
+  // ✅ AGREGADO: Getter para iniciales
+  String get iniciales => '${nombres[0]}${apellido[0]}'.toUpperCase();
 
   factory PlayerModel.fromMap(Map<String, dynamic> map) {
     // Soporta fecha como String o Timestamp (Firestore)

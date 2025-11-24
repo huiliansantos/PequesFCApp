@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';  // ✅ AGREGADO
 import '../../models/guardian_model.dart';
 import '../../models/profesor_model.dart';
 import '../../widgets/gradient_button.dart';
 import '../../services/auth_service.dart';
+import '../../services/auth_registration_service.dart';  // ✅ AGREGADO
 
 class ChangePasswordManualScreen extends StatefulWidget {
   final dynamic usuario; // GuardianModel o ProfesorModel
@@ -31,6 +33,8 @@ class _ChangePasswordManualScreenState
   late String coleccion;
   late String docId;
   late String contrasenaActual;
+  late String usuario;  // ✅ AGREGADO
+  late String tipo;  // ✅ AGREGADO (profesor o apoderado)
 
   @override
   void initState() {
@@ -51,12 +55,16 @@ class _ChangePasswordManualScreenState
       coleccion = 'profesores';
       docId = profesor.id;
       contrasenaActual = profesor.contrasena;
+      usuario = profesor.usuario;  // ✅ AGREGADO
+      tipo = 'profesor';  // ✅ AGREGADO
       debugPrint('✅ Detectado ProfesorModel: $docId');
     } else if (widget.usuario is GuardianModel) {
       final guardian = widget.usuario as GuardianModel;
       coleccion = 'guardianes';
       docId = guardian.id;
       contrasenaActual = guardian.contrasena;
+      usuario = guardian.usuario;  // ✅ AGREGADO
+      tipo = 'apoderado';  // ✅ AGREGADO
       debugPrint('✅ Detectado GuardianModel: $docId');
     } else {
       debugPrint('❌ Tipo de usuario no reconocido');
@@ -108,7 +116,7 @@ class _ChangePasswordManualScreenState
         return;
       }
 
-      // Actualizar en Firestore
+      // ✅ 1. ACTUALIZAR EN FIRESTORE
       debugPrint('📝 Actualizando contraseña en Firestore...');
       await FirebaseFirestore.instance
           .collection(coleccion)
@@ -117,9 +125,39 @@ class _ChangePasswordManualScreenState
 
       debugPrint('✅ Contraseña actualizada en Firestore');
 
-      // ✅ Actualizar también en la sesión local
-      await AuthService.actualizarContrasenaLocal(nueva);
+      // ✅ 2. ACTUALIZAR EN FIREBASE AUTH (si existe cuenta)
+      try {
+        final emailAuth = '${usuario}@peques.local';
+        debugPrint('🔓 Intentando actualizar en Firebase Auth: $emailAuth');
 
+        // Reautenticar con la contraseña actual
+        final credential = EmailAuthProvider.credential(
+          email: emailAuth,
+          password: actual,
+        );
+
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null && currentUser.email == emailAuth) {
+          await currentUser.reauthenticateWithCredential(credential);
+          debugPrint('✅ Reautenticación exitosa');
+
+          // Actualizar contraseña en Firebase Auth
+          await currentUser.updatePassword(nueva);
+          debugPrint('✅ Contraseña actualizada en Firebase Auth');
+        } else {
+          debugPrint('⚠️ Usuario no autenticado en Firebase Auth (login local)');
+        }
+      } on FirebaseAuthException catch (e) {
+        debugPrint('⚠️ Error Firebase Auth: ${e.code} - ${e.message}');
+        // Continuar sin error - la contraseña local se actualizó
+        // El usuario puede hacer login con la nueva contraseña local
+      } catch (e) {
+        debugPrint('⚠️ Error al actualizar en Auth: $e');
+        // Continuar sin error - la contraseña local se actualizó
+      }
+
+      // ✅ 3. ACTUALIZAR EN SESIÓN LOCAL
+      await AuthService.actualizarContrasenaLocal(nueva);
       debugPrint('✅ Contraseña actualizada en sesión local');
 
       if (mounted) {

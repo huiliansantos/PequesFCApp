@@ -1,8 +1,15 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import '../models/guardian_model.dart';
+import '../models/profesor_model.dart';
 
 class AuthService {
+  static const String _keyTipoUsuario = 'tipo_usuario';
+  static const String _keyGuardianData = 'guardian_data';
+  static const String _keyProfesorData = 'profesor_data';
+  
   static const String _keyUsuario = 'usuario_key';
   static const String _keyContrasena = 'contrasena_key';
   static const String _keyDocId = 'doc_id_key';
@@ -14,15 +21,103 @@ class AuthService {
   static const String _keyCI = 'ci_key';
   static const String _keyDireccion = 'direccion_key';
   static const String _keyJugadoresIds = 'jugadores_ids_key';
+  static const String _keyEmail = 'email_key';  // ✅ AGREGADO
 
-  /// Verifica si hay sesión activa
+  /// ✅ GUARDAR SESIÓN DE APODERADO
+  static Future<void> guardarSesionApoderado(GuardianModel guardian) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTipoUsuario, 'apoderado');
+    await prefs.setString(_keyGuardianData, jsonEncode(guardian.toMap()));
+    await prefs.setString(_keyUsuario, guardian.usuario);
+    await prefs.setString(_keyContrasena, guardian.contrasena);
+    await prefs.setString(_keyDocId, guardian.id);
+    await prefs.setString(_keyRol, 'apoderado');
+    await prefs.setString(_keyNombreCompleto, guardian.nombreCompleto);
+    await prefs.setString(_keyCelular, guardian.celular);
+    await prefs.setString(_keyCI, guardian.ci);
+    await prefs.setString(_keyDireccion, guardian.direccion);
+    await prefs.setStringList(_keyJugadoresIds, guardian.jugadoresIds);
+    await prefs.setString(_keyEmail, guardian.usuario);  // ✅ AGREGADO
+    debugPrint('✅ Sesión apoderado guardada: ${guardian.usuario}');
+  }
+
+  /// ✅ GUARDAR SESIÓN DE PROFESOR
+  static Future<void> guardarSesionProfesor(ProfesorModel profesor) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTipoUsuario, 'profesor');
+    await prefs.setString(_keyProfesorData, jsonEncode(profesor.toMap()));
+    await prefs.setString(_keyUsuario, profesor.usuario);
+    await prefs.setString(_keyContrasena, profesor.contrasena);
+    await prefs.setString(_keyDocId, profesor.id);
+    await prefs.setString(_keyRol, 'profesor');
+    await prefs.setString(_keyNombre, profesor.nombre);
+    await prefs.setString(_keyApellido, profesor.apellido);
+    await prefs.setString(
+        _keyNombreCompleto, '${profesor.nombre} ${profesor.apellido}');
+    await prefs.setString(_keyCelular, profesor.celular);
+    await prefs.setString(_keyCI, profesor.ci);
+    await prefs.setString(_keyEmail, profesor.usuario);  // ✅ AGREGADO
+    debugPrint('✅ Sesión profesor guardada: ${profesor.usuario}');
+  }
+
+  /// ✅ GUARDAR SESIÓN DE ADMIN
+  static Future<void> guardarSesionAdmin({
+    required String email,
+    required String uid,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTipoUsuario, 'admin');
+    await prefs.setString(_keyUsuario, email);
+    await prefs.setString(_keyDocId, uid);
+    await prefs.setString(_keyRol, 'admin');
+    await prefs.setString(_keyEmail, email);  // ✅ AGREGADO
+    debugPrint('✅ Sesión admin guardada: $email');
+  }
+
+  /// ✅ OBTENER TIPO DE USUARIO
+  static Future<String?> obtenerTipoUsuario() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyTipoUsuario);
+  }
+
+  /// ✅ OBTENER APODERADO GUARDADO
+  static Future<GuardianModel?> obtenerApoderado() async {
+    final prefs = await SharedPreferences.getInstance();
+    final guardianJson = prefs.getString(_keyGuardianData);
+    if (guardianJson != null) {
+      try {
+        final guardianMap = jsonDecode(guardianJson) as Map<String, dynamic>;
+        return GuardianModel.fromMap(guardianMap);
+      } catch (e) {
+        debugPrint('❌ Error decodificando apoderado: $e');
+      }
+    }
+    return null;
+  }
+
+  /// ✅ OBTENER PROFESOR GUARDADO
+  static Future<ProfesorModel?> obtenerProfesor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final profesorJson = prefs.getString(_keyProfesorData);
+    if (profesorJson != null) {
+      try {
+        final profesorMap = jsonDecode(profesorJson) as Map<String, dynamic>;
+        return ProfesorModel.fromMap(profesorMap);
+      } catch (e) {
+        debugPrint('❌ Error decodificando profesor: $e');
+      }
+    }
+    return null;
+  }
+
+  /// ✅ VERIFICAR SI HAY SESIÓN ACTIVA
   static Future<bool> tieneSesionActiva() async {
     final prefs = await SharedPreferences.getInstance();
     final usuario = prefs.getString(_keyUsuario);
     return usuario != null && usuario.isNotEmpty;
   }
 
-  /// Obtiene datos de la sesión actual
+  /// ✅ OBTENER DATOS DE LA SESIÓN ACTUAL
   static Future<Map<String, dynamic>?> obtenerSesion() async {
     final prefs = await SharedPreferences.getInstance();
     final usuario = prefs.getString(_keyUsuario);
@@ -41,6 +136,7 @@ class AuthService {
       'celular': prefs.getString(_keyCelular) ?? '',
       'ci': prefs.getString(_keyCI) ?? '',
       'direccion': prefs.getString(_keyDireccion) ?? '',
+      'email': prefs.getString(_keyEmail) ?? '',
       'jugadoresIds': prefs.getStringList(_keyJugadoresIds) ?? [],
     };
   }
@@ -66,19 +162,11 @@ class AuthService {
 
         if (data['contrasena'] == contrasena) {
           debugPrint('✅ Login exitoso: Profesor ${data['nombre']}');
-          await _guardarSesion(
-            usuario: usuario,
-            contrasena: contrasena,
-            docId: doc.id,
-            rol: 'profesor',
-            nombre: data['nombre'] ?? '',
-            apellido: data['apellido'] ?? '',
-            nombreCompleto: '${data['nombre'] ?? ''} ${data['apellido'] ?? ''}',
-            celular: data['celular'] ?? '',
-            ci: data['ci'] ?? '',
-            direccion: data['direccion'] ?? '',
-            categoriaEquipoId: data['categoriaEquipoId'] ?? '',
-          );
+          
+          // ✅ GUARDAR CON NUEVO MÉTODO
+          final profesor = ProfesorModel.fromMap(data..['id'] = doc.id);
+          await guardarSesionProfesor(profesor);
+          
           data['id'] = doc.id;
           data['docId'] = doc.id;
           return data;
@@ -99,22 +187,10 @@ class AuthService {
         if (data['contrasena'] == contrasena) {
           debugPrint('✅ Login exitoso: Apoderado ${data['nombreCompleto']}');
           
-          final jugadoresIds =
-              (data['jugadoresIds'] as List<dynamic>?)?.cast<String>() ?? [];
-
-          await _guardarSesion(
-            usuario: usuario,
-            contrasena: contrasena,
-            docId: doc.id,
-            rol: 'apoderado',
-            nombre: '',
-            apellido: '',
-            nombreCompleto: data['nombreCompleto'] ?? '',
-            celular: data['celular'] ?? '',
-            ci: data['ci'] ?? '',
-            direccion: data['direccion'] ?? '',
-            jugadoresIds: jugadoresIds,
-          );
+          // ✅ GUARDAR CON NUEVO MÉTODO
+          final guardian = GuardianModel.fromMap(data..['id'] = doc.id);
+          await guardarSesionApoderado(guardian);
+          
           data['id'] = doc.id;
           data['docId'] = doc.id;
           return data;
@@ -129,7 +205,7 @@ class AuthService {
     }
   }
 
-  /// Guarda la sesión en SharedPreferences
+  /// Guarda la sesión en SharedPreferences (legacy - usar guardarSesionApoderado/guardarSesionProfesor)
   static Future<void> _guardarSesion({
     required String usuario,
     required String contrasena,
@@ -160,17 +236,65 @@ class AuthService {
   }
 
   /// Actualiza la contraseña en la sesión local
-  /// Se llama después de cambiar contraseña en Firestore
-  static Future<void> actualizarContrasenaLocal(
-      String nuevaContrasena) async {
+  static Future<void> actualizarContrasenaLocal(String nuevaContrasena) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyContrasena, nuevaContrasena);
+    
+    // ✅ ACTUALIZAR TAMBIÉN EN JSON GUARDADO
+    final tipoUsuario = await obtenerTipoUsuario();
+    if (tipoUsuario == 'apoderado') {
+      final guardian = await obtenerApoderado();
+      if (guardian != null) {
+        await guardarSesionApoderado(
+          GuardianModel(
+            id: guardian.id,
+            nombreCompleto: guardian.nombreCompleto,
+            apellido: guardian.apellido,
+            ci: guardian.ci,
+            celular: guardian.celular,
+            direccion: guardian.direccion,
+            usuario: guardian.usuario,
+            contrasena: nuevaContrasena,  // ✅ Nueva contraseña
+            jugadoresIds: guardian.jugadoresIds,
+            rol: guardian.rol,
+          ),
+        );
+      }
+    } else if (tipoUsuario == 'profesor') {
+      final profesor = await obtenerProfesor();
+      if (profesor != null) {
+        await guardarSesionProfesor(
+          ProfesorModel(
+            id: profesor.id,
+            nombre: profesor.nombre,
+            apellido: profesor.apellido,
+            ci: profesor.ci,
+            fechaNacimiento: profesor.fechaNacimiento,
+            celular: profesor.celular,
+            usuario: profesor.usuario,
+            contrasena: nuevaContrasena,  // ✅ Nueva contraseña
+            categoriaEquipoId: profesor.categoriaEquipoId,
+            rol: profesor.rol,
+          ),
+        );
+      }
+    }
+    
     debugPrint('✅ Contraseña actualizada localmente');
   }
 
-  /// Cierra la sesión actual
+  /// ✅ VERIFICAR SI HAY SESIÓN ACTIVA
+  static Future<bool> haySesionActiva() async {
+    final tipo = await obtenerTipoUsuario();
+    return tipo != null;
+  }
+
+  /// ✅ CERRAR SESIÓN
   static Future<void> cerrarSesion() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyTipoUsuario);
+    await prefs.remove(_keyGuardianData);
+    await prefs.remove(_keyProfesorData);
     await prefs.remove(_keyUsuario);
     await prefs.remove(_keyContrasena);
     await prefs.remove(_keyDocId);
@@ -182,6 +306,7 @@ class AuthService {
     await prefs.remove(_keyCI);
     await prefs.remove(_keyDireccion);
     await prefs.remove(_keyJugadoresIds);
-    debugPrint('✅ Sesión cerrada');
+    await prefs.remove(_keyEmail);  // ✅ AGREGADO
+    debugPrint('✅ Sesión cerrada completamente');
   }
 }

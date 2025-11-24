@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/profesor_model.dart';
 import '../screens/auth/change_password_manual_screen.dart';
 import '../services/auth_service.dart';
@@ -8,7 +9,7 @@ import '../screens/login/login_screen.dart';
 class ProfesorDrawer extends StatelessWidget {
   final ProfesorModel profesor;
   final VoidCallback? onLogout;
-  final Function(int)? onMenuItemSelected;  // ✅ AGREGADO: Callback para navegar
+  final Function(int)? onMenuItemSelected; // ✅ AGREGADO: Callback para navegar
 
   const ProfesorDrawer({
     Key? key,
@@ -27,8 +28,8 @@ class ProfesorDrawer extends StatelessWidget {
       builder: (context, snapshot) {
         // Obtener datos actuales (del stream o del modelo local)
         final profesorActual = snapshot.hasData && snapshot.data!.exists
-            ? ProfesorModel.fromMap(snapshot.data!.data()!
-              ..['id'] = profesor.id)
+            ? ProfesorModel.fromMap(
+                snapshot.data!.data()!..['id'] = profesor.id)
             : profesor;
 
         return Drawer(
@@ -37,7 +38,7 @@ class ProfesorDrawer extends StatelessWidget {
               children: [
                 // ✅ HEADER CON INFORMACIÓN DEL PROFESOR - ANCHO COMPLETO
                 Container(
-                  width: double.infinity,  // ✅ Ancho completo
+                  width: double.infinity, // ✅ Ancho completo
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Color(0xFFD32F2F), Color(0xFFF57C00)],
@@ -45,7 +46,8 @@ class ProfesorDrawer extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -167,13 +169,13 @@ class ProfesorDrawer extends StatelessWidget {
                         .collection('profesores')
                         .doc(profesorActual.id);
                     try {
-                      final snap = await ref.get(
-                          const GetOptions(source: Source.server));
+                      final snap = await ref
+                          .get(const GetOptions(source: Source.server));
                       final data = snap.data();
-                      final latestPass = (data != null &&
-                              data!['contrasena'] != null)
-                          ? data!['contrasena'].toString()
-                          : '';
+                      final latestPass =
+                          (data != null && data!['contrasena'] != null)
+                              ? data!['contrasena'].toString()
+                              : '';
 
                       if (latestPass.isEmpty) {
                         if (!context.mounted) return;
@@ -198,8 +200,8 @@ class ProfesorDrawer extends StatelessWidget {
                                     MaterialPageRoute(
                                       builder: (_) =>
                                           ChangePasswordManualScreen(
-                                            usuario: profesorActual,
-                                          ),
+                                        usuario: profesorActual,
+                                      ),
                                     ),
                                   );
                                 },
@@ -253,8 +255,8 @@ class ProfesorDrawer extends StatelessWidget {
                                         MaterialPageRoute(
                                           builder: (_) =>
                                               ChangePasswordManualScreen(
-                                                usuario: profesorActual,
-                                              ),
+                                            usuario: profesorActual,
+                                          ),
                                         ),
                                       );
                                     },
@@ -310,8 +312,33 @@ class ProfesorDrawer extends StatelessWidget {
                     );
 
                     if (confirm == true) {
-                      // ✅ Usar AuthService en lugar de FirebaseAuth
+                      //cerrar sesion
+                      debugPrint(
+                          '🔐 Iniciando cierre de sesión del profesor...');
+
+                      // ✅ 1. LIMPIAR SESIÓN LOCAL
                       await AuthService.cerrarSesion();
+                      debugPrint('✅ Sesión local cerrada');
+
+                      // ✅ 2. CERRAR SESIÓN EN FIREBASE SI EXISTE
+                      try {
+                        await FirebaseAuth.instance.signOut();
+                        debugPrint('✅ Sesión Firebase cerrada');
+                      } catch (e) {
+                        debugPrint('⚠️ Error cerrando sesión Firebase: $e');
+                      }
+
+                      if (context.mounted) {
+                        // ✅ 3. NAVEGAR A LOGIN
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                        debugPrint('✅ Navegado a LoginScreen');
+                      }
+
 
                       if (!context.mounted) return;
 

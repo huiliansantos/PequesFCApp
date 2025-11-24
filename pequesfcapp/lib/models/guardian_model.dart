@@ -1,6 +1,7 @@
 class GuardianModel {
   final String id;
   final String nombreCompleto;
+  final String apellido;
   final String ci;
   final String celular;
   final String direccion;
@@ -12,6 +13,7 @@ class GuardianModel {
   GuardianModel({
     required this.id,
     required this.nombreCompleto,
+    required this.apellido,
     required this.ci,
     required this.celular,
     required this.direccion,
@@ -24,6 +26,7 @@ class GuardianModel {
   Map<String, dynamic> toMap() => {
     'id': id,
     'nombreCompleto': nombreCompleto,
+    'apellido': apellido,
     'ci': ci,
     'celular': celular,
     'direccion': direccion,
@@ -36,6 +39,7 @@ class GuardianModel {
   factory GuardianModel.fromMap(Map<String, dynamic> map) => GuardianModel(
     id: map['id'] ?? '',
     nombreCompleto: map['nombreCompleto'] ?? '',
+    apellido: map['apellido'] ?? '',
     ci: map['ci'] ?? '',
     celular: map['celular'] ?? '',
     direccion: map['direccion'] ?? '',

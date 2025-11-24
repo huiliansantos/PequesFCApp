@@ -98,6 +98,7 @@ class _GuardianDetailScreenState extends ConsumerState<GuardianDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _detailRow(Icons.person, Colors.blue, 'Nombre:', guardian?.nombreCompleto ?? ''),
+                      _detailRow(Icons.person_outline, Colors.indigo, 'Apellido:', guardian?.apellido ?? ''),
                       _detailRow(Icons.badge, Colors.blue, 'CI:', guardian?.ci ?? ''),
                       _detailRow(Icons.phone, Colors.teal, 'Celular:', guardian?.celular ?? ''),
                       _detailRow(Icons.home, Colors.orange, 'Dirección:', guardian?.direccion ?? ''),

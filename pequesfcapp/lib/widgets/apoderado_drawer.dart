@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/guardian_model.dart';
+import '../screens/login/login_screen.dart';
 import '../services/auth_service.dart';
 import '../screens/auth/change_password_manual_screen.dart';
 
@@ -39,7 +41,7 @@ class ApoderadoDrawer extends StatelessWidget {
 
             return Column(
               children: [
-                // ✅ HEADER CON INFORMACIÓN DEL APODERADO - ANCHO COMPLETO
+                // ✅ HEADER CON INFORMACIÓN DEL APODERADO
                 Container(
                   width: double.infinity,
                   decoration: const BoxDecoration(
@@ -97,9 +99,7 @@ class ApoderadoDrawer extends StatelessWidget {
                           label: 'Inicio',
                           onTap: () {
                             Navigator.pop(context);
-                            if (onMenuItemSelected != null) {
-                              onMenuItemSelected!(0);
-                            }
+                            onMenuItemSelected?.call(0);
                           },
                         ),
                         _buildMenuOption(
@@ -108,9 +108,7 @@ class ApoderadoDrawer extends StatelessWidget {
                           label: 'Asistencia',
                           onTap: () {
                             Navigator.pop(context);
-                            if (onMenuItemSelected != null) {
-                              onMenuItemSelected!(1);
-                            }
+                            onMenuItemSelected?.call(1);
                           },
                         ),
                         _buildMenuOption(
@@ -119,9 +117,7 @@ class ApoderadoDrawer extends StatelessWidget {
                           label: 'Pagos',
                           onTap: () {
                             Navigator.pop(context);
-                            if (onMenuItemSelected != null) {
-                              onMenuItemSelected!(2);
-                            }
+                            onMenuItemSelected?.call(2);
                           },
                         ),
                         _buildMenuOption(
@@ -130,9 +126,7 @@ class ApoderadoDrawer extends StatelessWidget {
                           label: 'Partidos',
                           onTap: () {
                             Navigator.pop(context);
-                            if (onMenuItemSelected != null) {
-                              onMenuItemSelected!(3);
-                            }
+                            onMenuItemSelected?.call(3);
                           },
                         ),
                         _buildMenuOption(
@@ -141,9 +135,7 @@ class ApoderadoDrawer extends StatelessWidget {
                           label: 'Resultados',
                           onTap: () {
                             Navigator.pop(context);
-                            if (onMenuItemSelected != null) {
-                              onMenuItemSelected!(4);
-                            }
+                            onMenuItemSelected?.call(4);
                           },
                         ),
 
@@ -165,123 +157,7 @@ class ApoderadoDrawer extends StatelessWidget {
                               ? 'Mostrar / Ocultar'
                               : 'No disponible'),
                           onTap: () async {
-                            final ref = FirebaseFirestore.instance
-                                .collection('guardianes')
-                                .doc(guardian.id);
-                            try {
-                              final snap = await ref.get(
-                                  const GetOptions(source: Source.server));
-                              final data = snap.data();
-                              final latestPass = (data != null &&
-                                      data!['contrasena'] != null)
-                                  ? data!['contrasena'].toString()
-                                  : '';
-
-                              if (latestPass.isEmpty) {
-                                if (!context.mounted) return;
-
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    title: const Text('Contraseña'),
-                                    content: const Text(
-                                        'La contraseña no está disponible. Puedes cambiarla de forma segura.'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context),
-                                        child: const Text('Cerrar'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ChangePasswordManualScreen(
-                                                    usuario: guardian,
-                                                  ),
-                                            ),
-                                          );
-                                        },
-                                        child: const Text(
-                                            'Cambiar contraseña'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                return;
-                              }
-
-                              bool obscure = true;
-                              if (!context.mounted) return;
-
-                              showDialog(
-                                context: context,
-                                builder: (ctx) {
-                                  return StatefulBuilder(
-                                    builder: (ctx2, setState) {
-                                      return AlertDialog(
-                                        title: const Text('Contraseña'),
-                                        content: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                obscure
-                                                    ? '●●●●●●●'
-                                                    : latestPass,
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: Icon(
-                                                obscure
-                                                    ? Icons.visibility
-                                                    : Icons.visibility_off,
-                                              ),
-                                              onPressed: () => setState(
-                                                  () => obscure = !obscure),
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx),
-                                            child: const Text('Cerrar'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(ctx);
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      ChangePasswordManualScreen(
-                                                        usuario: guardian,
-                                                      ),
-                                                ),
-                                              );
-                                            },
-                                            child: const Text(
-                                                'Cambiar contraseña'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            } catch (e) {
-                              if (!context.mounted) return;
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
+                            await _mostrarContrasena(context);
                           },
                         ),
                       ],
@@ -297,34 +173,7 @@ class ApoderadoDrawer extends StatelessWidget {
                     style: TextStyle(color: Colors.red),
                   ),
                   onTap: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('¿Cerrar sesión?'),
-                        content: const Text(
-                            '¿Estás seguro de que deseas cerrar sesión?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancelar'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Cerrar sesión'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirm == true) {
-                      await AuthService.cerrarSesion();
-                      if (context.mounted) {
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                          '/login',
-                          (route) => false,
-                        );
-                      }
-                    }
+                    await _cerrarSesionConDialogo(context);
                   },
                 ),
               ],
@@ -333,6 +182,184 @@ class ApoderadoDrawer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ✅ MOSTRAR CONTRASEÑA EN DIALOG
+  Future<void> _mostrarContrasena(BuildContext context) async {
+    try {
+      final ref = FirebaseFirestore.instance
+          .collection('guardianes')
+          .doc(guardian.id);
+      final snap =
+          await ref.get(const GetOptions(source: Source.server));
+      final data = snap.data();
+      final latestPass = (data != null && data!['contrasena'] != null)
+          ? data!['contrasena'].toString()
+          : '';
+
+      if (latestPass.isEmpty) {
+        if (!context.mounted) return;
+
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Contraseña'),
+            content: const Text(
+              'La contraseña no está disponible. Puedes cambiarla de forma segura.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChangePasswordManualScreen(
+                        usuario: guardian,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Cambiar contraseña'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      bool obscure = true;
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx2, setState) {
+              return AlertDialog(
+                title: const Text('Contraseña'),
+                content: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        obscure ? '●●●●●●●' : latestPass,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        obscure ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () => setState(
+                        () => obscure = !obscure,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cerrar'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChangePasswordManualScreen(
+                            usuario: guardian,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Cambiar contraseña'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      debugPrint('❌ Error mostrando contraseña: $e');
+    }
+  }
+
+  // ✅ CERRAR SESIÓN CON CONFIRMACIÓN
+  Future<void> _cerrarSesionConDialogo(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('¿Cerrar sesión?'),
+        content: const Text(
+          '¿Estás seguro de que deseas cerrar sesión?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        debugPrint('🔐 Iniciando cierre de sesión del apoderado...');
+
+        // ✅ 1. LIMPIAR SESIÓN LOCAL
+        await AuthService.cerrarSesion();
+        debugPrint('✅ Sesión local cerrada');
+
+        // ✅ 2. CERRAR SESIÓN EN FIREBASE SI EXISTE
+        try {
+          await FirebaseAuth.instance.signOut();
+          debugPrint('✅ Sesión Firebase cerrada');
+        } catch (e) {
+          debugPrint('⚠️ Error cerrando sesión Firebase: $e');
+        }
+
+        if (!context.mounted) return;
+
+        // ✅ 3. NAVEGAR A LOGIN (SIN RUTAS NOMBRADAS)
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const LoginScreen(),
+          ),
+          (route) => false,
+        );
+        debugPrint('✅ Navegado a LoginScreen');
+      } catch (e) {
+        if (!context.mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cerrar sesión: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        debugPrint('❌ Error al cerrar sesión: $e');
+      }
+    }
   }
 
   // ✅ WIDGET PARA CONSTRUIR LAS OPCIONES DEL MENÚ
@@ -346,7 +373,7 @@ class ApoderadoDrawer extends StatelessWidget {
       leading: Icon(
         icon,
         color: const Color(0xFFD32F2F),
-     ),
+      ),
       title: Text(
         label,
         style: const TextStyle(
@@ -355,7 +382,6 @@ class ApoderadoDrawer extends StatelessWidget {
           color: Colors.black87,
         ),
       ),
-      
       onTap: onTap,
       splashColor: Colors.red.shade50,
       hoverColor: Colors.red.shade50,

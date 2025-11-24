@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:PequesFCApp/services/auth_registration_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_role_provider.dart';
@@ -9,6 +11,7 @@ import '../../providers/profesor_provider.dart';
 import '../../repositories/player_repository.dart' as player_repo;
 import '../../models/profesor_model.dart';
 import '../../models/guardian_model.dart';
+import '../../services/auth_service.dart';
 import '../home/apoderado_home_screen.dart';
 import '../home/home_screen.dart';
 import '../home/profesor_home_screen.dart';
@@ -176,14 +179,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       debugPrint('🔐 Intentando login con usuario: $email');
 
-      // 1. Intenta login personalizado de profesor
+      // ✅ 1. INTENTA LOGIN LOCAL DE PROFESOR
       debugPrint('👨‍🏫 Verificando profesor...');
       final profesorRepo = ref.read(profesorRepositoryProvider);
       final profesor =
           await profesorRepo.autenticarProfesor(email, password);
 
-      if (profesor != null) {
+      if (profesor != null && mounted) {
         debugPrint('✅ Login profesor exitoso: ${profesor.nombre}');
+        
+        // ✅ GUARDAR SESIÓN
+        await AuthService.guardarSesionProfesor(profesor);
+        
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -197,60 +204,319 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      // 2. Intenta login personalizado de apoderado
+      // ✅ 2. INTENTA LOGIN CON FIREBASE AUTH DE PROFESOR
+      debugPrint('🔓 Intentando Firebase Auth profesor...');
+      final emailProfesor = '${email}@peques.local';
+      try {
+        final userCred = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+          email: emailProfesor,
+          password: password,
+        );
+
+        if (!mounted) return;
+
+        debugPrint('✅ Profesor autenticado en Firebase Auth');
+
+        final profesorSnapshot = await FirebaseFirestore.instance
+            .collection('profesores')
+            .where('firebaseUid', isEqualTo: userCred.user?.uid)
+            .limit(1)
+            .get();
+
+        if (profesorSnapshot.docs.isNotEmpty && mounted) {
+          final profesorData = profesorSnapshot.docs.first.data();
+          final profesorLogeado = ProfesorModel.fromMap(profesorData
+            ..['id'] = profesorSnapshot.docs.first.id);
+
+          // ✅ GUARDAR SESIÓN
+          await AuthService.guardarSesionProfesor(profesorLogeado);
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProfesorHomeScreen(
+                  profesor: profesorLogeado.toMap(),
+                ),
+              ),
+            );
+          }
+          return;
+        }
+
+        if (mounted) {
+          await FirebaseAuth.instance.signOut();
+        }
+      } on FirebaseAuthException catch (e) {
+        debugPrint('⚠️ Error Firebase Auth profesor: ${e.code}');
+      }
+
+      if (!mounted) return;
+
+      // ✅ 3. INTENTA LOGIN LOCAL DE APODERADO
       debugPrint('👨‍👩‍👧 Verificando apoderado...');
       final guardianRepo = ref.read(guardianRepositoryProvider);
       final guardian =
           await guardianRepo.autenticarGuardian(email, password);
 
-      if (guardian != null) {
+      if (guardian != null && mounted) {
         debugPrint('✅ Login apoderado exitoso: ${guardian.nombreCompleto}');
-        final playerRepo = ref.read(player_repo.playerRepositoryProvider);
-        final hijos = await playerRepo.getPlayersByGuardianId(guardian.id);
+        debugPrint('📋 Datos del apoderado: ${guardian.toMap()}');
+        
+        try {
+          // ✅ OBTENER HIJOS CON MANEJO DE ERRORES
+          debugPrint('📱 Obteniendo hijos del apoderado (ID: ${guardian.id})...');
+          final playerRepo = ref.read(player_repo.playerRepositoryProvider);
+          
+          List<dynamic> hijos = [];
+          try {
+            hijos = await playerRepo
+                .getPlayersByGuardianId(guardian.id)
+                .timeout(
+                  const Duration(seconds: 15),
+                  onTimeout: () {
+                    debugPrint('⚠️ Timeout al obtener hijos - continuando sin hijos');
+                    return [];
+                  },
+                );
+          } catch (e) {
+            debugPrint('⚠️ Error al obtener hijos: $e - continuando sin hijos');
+            hijos = [];
+          }
 
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ApoderadoHomeScreen(
-                guardian: guardian.toMap(), // ✅ CORREGIDO: Cambiar de guardian a guardian.toMap()
-                hijos: hijos,
+          if (!mounted) return;
+
+          debugPrint('✅ Hijos obtenidos: ${hijos.length}');
+
+          // ✅ GUARDAR SESIÓN ANTES DE NAVEGAR
+          try {
+            await AuthService.guardarSesionApoderado(guardian);
+            debugPrint('✅ Sesión guardada correctamente');
+          } catch (e) {
+            debugPrint('⚠️ Error guardando sesión: $e');
+          }
+
+          if (mounted) {
+            debugPrint('🔄 Navegando a ApoderadoHomeScreen...');
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ApoderadoHomeScreen(
+                  guardian: guardian.toMap(),
+                  hijos: hijos,
+                ),
               ),
-            ),
-          );
+            );
+          }
+          return;
+        } catch (e) {
+          debugPrint('❌ Error en login local apoderado: $e');
+          if (mounted) {
+            setState(() =>
+                error = 'Error: $e');
+          }
+          return;
         }
-        return;
       }
 
-      // 3. Intenta login con Firebase Auth (admin)
-      debugPrint('👤 Verificando admin (Firebase Auth)...');
-      try {
-        await ref
-            .read(authRepositoryProvider)
-            .signInWithEmail(email, password);
+      debugPrint('⚠️ No encontrado en login local apoderado, intentando Firebase...');
 
-        final rol = await ref.read(userRoleProvider.future);
-        debugPrint('✅ Login Firebase exitoso. Rol: $rol');
+      if (!mounted) return;
+
+      // ✅ 4. INTENTA LOGIN CON FIREBASE AUTH DE APODERADO
+      debugPrint('🔓 Intentando Firebase Auth apoderado...');
+      final emailGuardian = '${email}@peques.local';
+      try {
+        final userCred = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+          email: emailGuardian,
+          password: password,
+        );
 
         if (!mounted) return;
 
-        if (rol == 'admin') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const HomeScreen(role: 'admin'),
-            ),
-          );
-          return;
+        debugPrint('✅ Apoderado autenticado en Firebase Auth: ${userCred.user?.email}');
+        debugPrint('🔍 Firebase UID: ${userCred.user?.uid}');
+
+        // ✅ BUSCAR POR EMAIL PRIMERO (más rápido)
+        var guardianSnapshot = await FirebaseFirestore.instance
+            .collection('guardianes')
+            .where('email', isEqualTo: emailGuardian)
+            .limit(1)
+            .get();
+
+        debugPrint('🔍 Búsqueda por email: ${guardianSnapshot.docs.length} resultados');
+
+        // ✅ SI NO ENCUENTRA POR EMAIL, BUSCAR POR USUARIO
+        if (guardianSnapshot.docs.isEmpty) {
+          debugPrint('⚠️ No encontrado por email, buscando por usuario: $email');
+          guardianSnapshot = await FirebaseFirestore.instance
+              .collection('guardianes')
+              .where('usuario', isEqualTo: email)
+              .limit(1)
+              .get();
+
+          debugPrint('🔍 Búsqueda por usuario: ${guardianSnapshot.docs.length} resultados');
+        }
+
+        // ✅ SI NO ENCUENTRA POR USUARIO, BUSCAR POR UID
+        if (guardianSnapshot.docs.isEmpty) {
+          debugPrint('⚠️ No encontrado por usuario, buscando por firebaseUid: ${userCred.user?.uid}');
+          guardianSnapshot = await FirebaseFirestore.instance
+              .collection('guardianes')
+              .where('firebaseUid', isEqualTo: userCred.user?.uid)
+              .limit(1)
+              .get();
+
+          debugPrint('🔍 Búsqueda por firebaseUid: ${guardianSnapshot.docs.length} resultados');
+        }
+
+        if (guardianSnapshot.docs.isNotEmpty && mounted) {
+          final guardianData = guardianSnapshot.docs.first.data();
+          final guardianId = guardianSnapshot.docs.first.id;
+          
+          debugPrint('✅ Apoderado encontrado: ${guardianData['nombreCompleto']}');
+
+          // ✅ ACTUALIZAR FIREBASEUID SI NO EXISTE O ES DIFERENTE
+          if (guardianData['firebaseUid'] != userCred.user?.uid) {
+            try {
+              debugPrint('📝 Actualizando firebaseUid del apoderado...');
+              await FirebaseFirestore.instance
+                  .collection('guardianes')
+                  .doc(guardianId)
+                  .update({'firebaseUid': userCred.user?.uid});
+            } catch (e) {
+              debugPrint('⚠️ Error actualizando firebaseUid: $e');
+            }
+          }
+
+          final guardianLogeado = GuardianModel.fromMap(guardianData
+            ..['id'] = guardianId);
+
+          try {
+            // ✅ OBTENER HIJOS CON MANEJO DE ERRORES
+            debugPrint('📱 Obteniendo hijos del apoderado (Firebase Auth)...');
+            final playerRepo = ref.read(player_repo.playerRepositoryProvider);
+            
+            List<dynamic> hijos = [];
+            try {
+              hijos = await playerRepo
+                  .getPlayersByGuardianId(guardianLogeado.id)
+                  .timeout(
+                    const Duration(seconds: 15),
+                    onTimeout: () {
+                      debugPrint('⚠️ Timeout al obtener hijos');
+                      return [];
+                    },
+                  );
+            } catch (e) {
+              debugPrint('⚠️ Error al obtener hijos: $e - continuando sin hijos');
+              hijos = [];
+            }
+
+            if (!mounted) return;
+
+            debugPrint('✅ Hijos obtenidos: ${hijos.length}');
+
+            // ✅ GUARDAR SESIÓN
+            try {
+              await AuthService.guardarSesionApoderado(guardianLogeado);
+              debugPrint('✅ Sesión guardada correctamente');
+            } catch (e) {
+              debugPrint('⚠️ Error guardando sesión: $e');
+            }
+
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ApoderadoHomeScreen(
+                    guardian: guardianLogeado.toMap(),
+                    hijos: hijos,
+                  ),
+                ),
+              );
+            }
+            return;
+          } catch (e) {
+            debugPrint('❌ Error obteniendo hijos (Firebase Auth): $e');
+            if (mounted) {
+              setState(() => error = 'Error al obtener información: $e');
+            }
+            return;
+          }
         } else {
-          setState(() => error = 'Rol no reconocido: $rol');
+          debugPrint('❌ No encontrado apoderado en Firestore');
+        }
+
+        if (mounted) {
+          try {
+            await FirebaseAuth.instance.signOut();
+          } catch (e) {
+            debugPrint('⚠️ Error cerrando sesión Firebase: $e');
+          }
         }
       } on FirebaseAuthException catch (e) {
-        debugPrint('❌ Error Firebase: ${e.code}');
-        setState(() => error = 'Usuario o contraseña incorrectos (Admin)');
+        debugPrint('❌ Error Firebase Auth apoderado: ${e.code} - ${e.message}');
+      } catch (e) {
+        debugPrint('❌ Error general en Firebase Auth apoderado: $e');
+      }
+
+      if (!mounted) return;
+
+      // ✅ 5. INTENTA LOGIN CON FIREBASE AUTH (ADMIN)
+      debugPrint('👤 Verificando admin (Firebase Auth)...');
+      try {
+        final userCred = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        if (!mounted) return;
+
+        debugPrint('✅ Usuario autenticado en Firebase: ${userCred.user?.email}');
+
+        // ✅ VERIFICAR SI ES ADMIN CHECANDO CUSTOM CLAIMS
+        final idTokenResult = await userCred.user?.getIdTokenResult(true);
+        final isAdmin = idTokenResult?.claims?['admin'] ?? false;
+
+        if (isAdmin) {
+          debugPrint('✅ Login Admin exitoso: ${userCred.user?.email}');
+          
+          // ✅ GUARDAR SESIÓN ADMIN
+          await AuthService.guardarSesionAdmin(
+            email: email,
+            uid: userCred.user?.uid ?? '',
+          );
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const HomeScreen(role: 'admin'),
+              ),
+            );
+          }
+          return;
+        } else {
+          debugPrint('❌ Usuario no es admin');
+          if (mounted) {
+            setState(() => error = 'Usuario o contraseña incorrectos');
+          }
+          return;
+        }
+      } on FirebaseAuthException catch (e) {
+        debugPrint('❌ Error Firebase Admin: ${e.code} - ${e.message}');
+        if (mounted) {
+          setState(() => error = 'Usuario o contraseña incorrectos');
+        }
       } catch (e) {
         debugPrint('❌ Error en Firebase Auth: $e');
-        setState(() => error = 'Usuario o contraseña incorrectos');
+        if (mounted) {
+          setState(() => error = 'Usuario o contraseña incorrectos');
+        }
       }
     } catch (e) {
       debugPrint('❌ Error general en login: $e');

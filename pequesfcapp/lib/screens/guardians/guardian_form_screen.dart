@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/guardian_model.dart';
 import '../../models/player_model.dart';
 import '../../providers/player_provider.dart';
 import '../../widgets/gradient_button.dart';
 import '../../providers/guardian_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../services/auth_registration_service.dart'; // ✅ AGREGADO
 
 class GuardianFormScreen extends ConsumerStatefulWidget {
   final GuardianModel? guardian;
   final PlayerModel? jugador;
 
-  const GuardianFormScreen({Key? key, this.guardian, this.jugador}) : super(key: key);
+  const GuardianFormScreen({Key? key, this.guardian, this.jugador})
+      : super(key: key);
 
   @override
   ConsumerState<GuardianFormScreen> createState() => _GuardianFormScreenState();
@@ -29,20 +32,27 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
 
   List<String> jugadoresSeleccionados = [];
   String searchJugador = '';
+  bool _isSaving = false; // ✅ AGREGADO
 
   @override
   void initState() {
     super.initState();
     final partesNombre = widget.guardian?.nombreCompleto.split(' ') ?? ['', ''];
-    nombreController = TextEditingController(text: partesNombre.isNotEmpty ? partesNombre[0] : '');
-    apellidoController = TextEditingController(text: partesNombre.length > 1 ? partesNombre[1] : '');
+    nombreController = TextEditingController(
+        text: partesNombre.isNotEmpty ? partesNombre[0] : '');
+    apellidoController = TextEditingController(text: widget.guardian?.apellido ?? '');
     ciController = TextEditingController(text: widget.guardian?.ci ?? '');
-    celularController = TextEditingController(text: widget.guardian?.celular ?? '');
-    direccionController = TextEditingController(text: widget.guardian?.direccion ?? '');
-    usuarioController = TextEditingController(text: widget.guardian?.usuario ?? '');
-    contrasenaController = TextEditingController(text: widget.guardian?.contrasena ?? '');
+    celularController =
+        TextEditingController(text: widget.guardian?.celular ?? '');
+    direccionController =
+        TextEditingController(text: widget.guardian?.direccion ?? '');
+    usuarioController =
+        TextEditingController(text: widget.guardian?.usuario ?? '');
+    contrasenaController =
+        TextEditingController(text: widget.guardian?.contrasena ?? '');
     jugadoresSeleccionados = widget.guardian?.jugadoresIds.toList() ?? [];
-    if (widget.jugador != null && !jugadoresSeleccionados.contains(widget.jugador!.id)) {
+    if (widget.jugador != null &&
+        !jugadoresSeleccionados.contains(widget.jugador!.id)) {
       jugadoresSeleccionados.add(widget.jugador!.id);
     }
   }
@@ -60,14 +70,25 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
   }
 
   String generarUsuario(String nombre, String apellido, String ci) {
-    final inicial = nombre.trim().isNotEmpty ? nombre.trim()[0].toLowerCase() : '';
-    final ap = apellido.trim().toLowerCase();
+    // ✅ NUEVO FORMATO: inicial nombre + primer apellido + primeros 3 dígitos CI
+    final inicial =
+        nombre.trim().isNotEmpty ? nombre.trim()[0].toLowerCase() : '';
+
+    // Obtener el PRIMER apellido (si hay múltiples separados por espacio)
+    final primerApellido = apellido.trim().split(' ').first.toLowerCase();
+
+    // Primeros 3 números del CI
     final ci3 = ci.trim().length >= 3 ? ci.trim().substring(0, 3) : ci.trim();
-    return '$inicial$ap$ci3';
+
+    return '$inicial$primerApellido$ci3'; // ✅ jgarcia123
   }
 
   String generarContrasena(String celular) {
-    return '$celular' 'pequestarija';
+    // ✅ NUEVO FORMATO: primeros 3 números celular + 'peques'
+    final celular3 = celular.trim().length >= 3
+        ? celular.trim().substring(0, 3)
+        : celular.trim();
+    return '${celular3}peques'; // ✅ 098peques
   }
 
   Future<bool> existeCI(String ci) async {
@@ -89,19 +110,26 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     if (await existeCI(ciController.text)) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ya existe un apoderado con ese carnet de identidad')),
+          const SnackBar(
+              content:
+                  Text('Ya existe un apoderado con ese carnet de identidad')),
         );
       }
       return;
     }
 
-    // Genera usuario y contraseña automáticamente solo si es nuevo
-    final usuarioGenerado = generarUsuario(nombreController.text, apellidoController.text, ciController.text);
+    // Genera usuario y contraseña automáticamente
+    final usuarioGenerado = generarUsuario(
+      nombreController.text,
+      apellidoController.text,
+      ciController.text,
+    );
     final contrasenaGenerada = generarContrasena(celularController.text);
 
     final newGuardian = GuardianModel(
       id: widget.guardian?.id ?? const Uuid().v4(),
-      nombreCompleto: '${nombreController.text} ${apellidoController.text}',
+      nombreCompleto: nombreController.text,
+      apellido: apellidoController.text,
       ci: ciController.text,
       celular: celularController.text,
       direccion: direccionController.text,
@@ -112,32 +140,83 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     );
 
     final repo = ref.read(guardianRepositoryProvider);
+    final isNew = widget.guardian == null;
 
-    if (widget.guardian == null) {
-      await repo.addGuardian(newGuardian);
-    } else {
-      await repo.updateGuardian(newGuardian);
-    }
-
-    // ACTUALIZA EL GUARDIAN EN CADA JUGADOR ASIGNADO
-    final playerRepo = ref.read(playerRepositoryProvider);
-    for (final jugadorId in jugadoresSeleccionados) {
-      await playerRepo.actualizarGuardian(jugadorId, newGuardian.id);
-    }
-
-    // Si quitaste jugadores, pon guardianId en vacío
-    if (widget.guardian != null) {
-      final jugadoresQuitados = widget.guardian!.jugadoresIds.where((id) => !jugadoresSeleccionados.contains(id));
-      for (final jugadorId in jugadoresQuitados) {
-        await playerRepo.actualizarGuardian(jugadorId, '');
-      }
-    }
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Apoderado registrado/actualizado correctamente')),
+    // Mostrar loading
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
       );
-      Navigator.pop(context);
+    }
+
+    try {
+      // ✅ GUARDAR EN FIRESTORE
+      if (isNew) {
+        await repo.addGuardian(newGuardian);
+      } else {
+        await repo.updateGuardian(newGuardian);
+      }
+
+      // ACTUALIZA EL GUARDIAN EN CADA JUGADOR ASIGNADO
+      final playerRepo = ref.read(playerRepositoryProvider);
+      for (final jugadorId in jugadoresSeleccionados) {
+        await playerRepo.actualizarGuardian(jugadorId, newGuardian.id);
+      }
+
+      // Si quitaste jugadores, pon guardianId en vacío
+      if (widget.guardian != null) {
+        final jugadoresQuitados = widget.guardian!.jugadoresIds
+            .where((id) => !jugadoresSeleccionados.contains(id));
+        for (final jugadorId in jugadoresQuitados) {
+          await playerRepo.actualizarGuardian(jugadorId, '');
+        }
+      }
+
+      // ✅ SI ES NUEVO, REGISTRAR EN FIREBASE AUTH
+      // Usar usuario@peques.local como email (no guardamos en modelo)
+      if (isNew) {
+        try {
+          await AuthRegistrationService.registrarEnAuth(
+            email:
+                '${usuarioGenerado}@peques.local', // ✅ Generar email del usuario
+            usuario: usuarioGenerado,
+            contrasena: contrasenaGenerada,
+            tipo: 'apoderado',
+            docId: newGuardian.id,
+          );
+          debugPrint('✅ Apoderado registrado en Auth');
+        } catch (e) {
+          debugPrint('⚠️ Error al registrar en Auth: $e');
+          // Continuar sin error - el usuario puede hacer login manual
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isNew
+                  ? 'Apoderado registrado exitosamente'
+                  : 'Apoderado actualizado correctamente',
+            ),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e, st) {
+      if (mounted) Navigator.pop(context);
+      debugPrint('Error guardar apoderado: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -147,7 +226,9 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.guardian == null ? 'Registrar Apoderado' : 'Editar Apoderado'),
+        title: Text(widget.guardian == null
+            ? 'Registrar Apoderado'
+            : 'Editar Apoderado'),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -172,7 +253,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                       decoration: const InputDecoration(labelText: 'Nombre'),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Campo obligatorio';
-                        if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(v)) return 'Solo letras';
+                        if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(v))
+                          return 'Solo letras';
                         return null;
                       },
                     ),
@@ -184,7 +266,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                       decoration: const InputDecoration(labelText: 'Apellido'),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Campo obligatorio';
-                        if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(v)) return 'Solo letras';
+                        if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$').hasMatch(v))
+                          return 'Solo letras';
                         return null;
                       },
                     ),
@@ -196,7 +279,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 decoration: const InputDecoration(labelText: 'CI'),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Campo obligatorio';
-                  if (!RegExp(r'^\d{7,}$').hasMatch(v)) return 'Debe tener al menos 7 números';
+                  if (!RegExp(r'^\d{7,}$').hasMatch(v))
+                    return 'Debe tener al menos 7 números';
                   return null;
                 },
                 keyboardType: TextInputType.number,
@@ -206,7 +290,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 decoration: const InputDecoration(labelText: 'Celular'),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Campo obligatorio';
-                  if (!RegExp(r'^\d{8,}$').hasMatch(v)) return 'Debe tener al menos 8 números';
+                  if (!RegExp(r'^\d{8,}$').hasMatch(v))
+                    return 'Debe tener al menos 8 números';
                   return null;
                 },
                 keyboardType: TextInputType.number,
@@ -217,7 +302,8 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                 validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
               ),
               const SizedBox(height: 20),
-              Text('Asignar Jugador(es)', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Asignar Jugador(es)',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Buscar jugador',
@@ -237,7 +323,9 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
                   final filtrados = jugadores.where((j) {
                     final nombre = '${j.nombres} ${j.apellido}'.toLowerCase();
                     final seleccionado = jugadoresSeleccionados.contains(j.id);
-                    return seleccionado || (searchJugador.isNotEmpty && nombre.contains(searchJugador));
+                    return seleccionado ||
+                        (searchJugador.isNotEmpty &&
+                            nombre.contains(searchJugador));
                   }).toList();
                   return Column(
                     children: filtrados
@@ -260,8 +348,10 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
               ),
               const SizedBox(height: 20),
               GradientButton(
-                 onPressed: _saveGuardian,
-                child: Text(widget.guardian == null ? 'Registrar Apoderado' : 'Actualizar Apoderado'),
+                onPressed: _isSaving ? null : _saveGuardian, // ✅ AGREGADO
+                child: Text(widget.guardian == null
+                    ? 'Registrar Apoderado'
+                    : 'Actualizar Apoderado'),
               ),
             ],
           ),

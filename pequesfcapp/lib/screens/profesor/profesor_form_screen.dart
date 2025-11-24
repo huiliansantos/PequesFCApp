@@ -6,6 +6,7 @@ import '../../models/profesor_model.dart';
 import '../../widgets/gradient_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/profesor_provider.dart';
+import '../../services/auth_registration_service.dart';  // ✅ AGREGADO
 
 class ProfesorFormScreen extends ConsumerStatefulWidget {
   final ProfesorModel? profesor;
@@ -23,21 +24,17 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
   final ciController = TextEditingController();
   final celularController = TextEditingController();
   DateTime? fechaNacimiento;
-  String? categoriaEquipoId; // para guardar: id único o "id1,id2"
+  String? categoriaEquipoId;
   String rol = 'profesor';
 
-  // Modo multi-select
   bool multiAsignacion = false;
   final Set<String> equiposSeleccionados = {};
 
-  // Carga temporal de items desde Firestore para el selector
   List<Map<String, String>> categoriaEquipoItems = [];
 
-  // Buscador para multi-select
   final TextEditingController _searchController = TextEditingController();
   String _searchTerm = '';
 
-  // Control de lista expandida en multi-select
   bool _expandedMultiList = false;
 
   @override
@@ -52,14 +49,17 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
       categoriaEquipoId = widget.profesor!.categoriaEquipoId;
       rol = widget.profesor!.rol;
 
-      // si el campo tiene comas asumimos que es multi-asignación
       if (categoriaEquipoId != null && categoriaEquipoId!.contains(',')) {
         multiAsignacion = true;
-        equiposSeleccionados.addAll(categoriaEquipoId!.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
+        equiposSeleccionados.addAll(
+          categoriaEquipoId!
+              .split(',')
+              .map((s) => s.trim())
+              .where((s) => s.isNotEmpty),
+        );
       }
     }
 
-    // Cargar opciones una vez (no bloqueante)
     _loadCategoriaEquipoItems();
 
     _searchController.addListener(() {
@@ -71,7 +71,8 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
 
   Future<void> _loadCategoriaEquipoItems() async {
     try {
-      final snap = await FirebaseFirestore.instance.collection('categoria_equipo').get();
+      final snap =
+          await FirebaseFirestore.instance.collection('categoria_equipo').get();
       final items = <Map<String, String>>[];
       final seen = <String>{};
       for (final doc in snap.docs) {
@@ -81,10 +82,15 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
         seen.add(idField);
         final categoria = (data['categoria'] ?? '').toString();
         final equipo = (data['equipo'] ?? '').toString();
-        items.add({'docId': doc.id, 'id': idField, 'categoria': categoria, 'equipo': equipo, 'label': '$categoria - $equipo'});
+        items.add({
+          'docId': doc.id,
+          'id': idField,
+          'categoria': categoria,
+          'equipo': equipo,
+          'label': '$categoria - $equipo'
+        });
       }
 
-      // Ordenar por año (categoria) descendente si es posible
       int _getYear(Map<String, String> it) {
         final cat = it['categoria'] ?? '';
         final match = RegExp(r'\d{4}').firstMatch(cat);
@@ -100,19 +106,29 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar equipos: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error al cargar equipos: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
   String generarUsuario(String nombre, String apellido) {
-    final inicial = nombre.trim().isNotEmpty ? nombre.trim()[0].toLowerCase() : '';
+    final inicial =
+        nombre.trim().isNotEmpty ? nombre.trim()[0].toLowerCase() : '';
     final primerApellido = apellido.trim().split(' ').first.toLowerCase();
     return '$inicial$primerApellido';
   }
 
-  String generarContrasena(String ci) => '${ci}peques';
+  String generarContrasena(String ci) {
+        // ✅ NUEVO FORMATO: primeros 3 números celular + 'peques'
+    final ci3 = ci.trim().length >= 3
+        ? ci.trim().substring(0, 3)
+        : ci.trim();
+    return '${ci3}peques'; // ✅ 098peques
+  }
 
   @override
   void dispose() {
@@ -128,17 +144,26 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return false;
     if (fechaNacimiento == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seleccione fecha de nacimiento'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Seleccione fecha de nacimiento'),
+        backgroundColor: Colors.red,
+      ));
       return false;
     }
     if (multiAsignacion) {
       if (equiposSeleccionados.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seleccione al menos un equipo'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Seleccione al menos un equipo'),
+          backgroundColor: Colors.red,
+        ));
         return false;
       }
     } else {
       if (categoriaEquipoId == null || categoriaEquipoId!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seleccione un equipo'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Seleccione un equipo'),
+          backgroundColor: Colors.red,
+        ));
         return false;
       }
     }
@@ -146,10 +171,10 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
   }
 
   Future<void> _onGuardar() async {
-    // Validaciones locales primero
     if (!_validarFormulario()) return;
 
     final ci = ciController.text.trim();
+    final isEdit = widget.profesor != null;
 
     try {
       // 1) Comprobar unicidad del CI en Firestore
@@ -159,10 +184,11 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
           .get();
 
       final exists = query.docs.any((doc) {
-        // Si estamos editando, ignoramos el propio documento del profesor
-        if (widget.profesor != null) {
-          final docIdField = (doc.data() as Map<String, dynamic>)['id']?.toString() ?? '';
-          return doc.id != widget.profesor!.id && docIdField != widget.profesor!.id;
+        if (isEdit) {
+          final docIdField =
+              (doc.data() as Map<String, dynamic>)['id']?.toString() ?? '';
+          return doc.id != widget.profesor!.id &&
+              docIdField != widget.profesor!.id;
         }
         return true;
       });
@@ -182,20 +208,26 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
       debugPrint('Error comprobando CI único: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al verificar CI: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error al verificar CI: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       return;
     }
 
-    // Si pasa la comprobación, seguir con el guardado
-    final usuario = generarUsuario(nombreController.text, apellidoController.text);
+    final usuario = generarUsuario(
+      nombreController.text,
+      apellidoController.text,
+    );
     final contrasena = generarContrasena(ci);
-
-    final categoriaFinal = multiAsignacion ? equiposSeleccionados.join(',') : (categoriaEquipoId ?? '');
+    final categoriaFinal = multiAsignacion
+        ? equiposSeleccionados.join(',')
+        : (categoriaEquipoId ?? '');
 
     final profesor = ProfesorModel(
-      id: widget.profesor != null ? widget.profesor!.id : const Uuid().v4(),
+      id: isEdit ? widget.profesor!.id : const Uuid().v4(),
       nombre: nombreController.text.trim(),
       apellido: apellidoController.text.trim(),
       ci: ci,
@@ -218,7 +250,9 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
 
     try {
       final repo = ref.read(profesorRepositoryProvider);
-      if (widget.profesor != null) {
+
+      // ✅ GUARDAR EN FIRESTORE
+      if (isEdit) {
         await repo.updateProfesor(profesor);
       } else {
         await repo.addProfesor(profesor);
@@ -226,10 +260,34 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
 
       ref.invalidate(profesoresProvider);
 
+      // ✅ SI ES NUEVO, REGISTRAR EN FIREBASE AUTH
+      // Usar usuario@peques.local como email (no guardamos en modelo)
+      if (!isEdit) {
+        try {
+          await AuthRegistrationService.registrarEnAuth(
+            email: '$usuario@peques.local',  // ✅ Generar email del usuario
+            usuario: usuario,
+            contrasena: contrasena,
+            tipo: 'profesor',
+            docId: profesor.id,
+          );
+          debugPrint('✅ Profesor registrado en Auth');
+        } catch (e) {
+          debugPrint('⚠️ Error al registrar en Auth: $e');
+          // Continuar sin error - el usuario puede hacer login manual
+        }
+      }
+
       if (mounted) {
         Navigator.pop(context); // cerrar loading
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.profesor != null ? 'Profesor actualizado' : 'Profesor registrado')),
+          SnackBar(
+            content: Text(
+              isEdit
+                  ? 'Profesor actualizado'
+                  : 'Profesor registrado exitosamente',
+            ),           
+          ),
         );
         Navigator.pop(context);
       }
@@ -237,12 +295,19 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
       if (mounted) Navigator.pop(context);
       debugPrint('Error guardar profesor: $e\n$st');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
-  String? _validateRequired(String? v) => (v == null || v.trim().isEmpty) ? 'Campo obligatorio' : null;
+  String? _validateRequired(String? v) =>
+      (v == null || v.trim().isEmpty) ? 'Campo obligatorio' : null;
+
   String? _validateCI(String? v) {
     if (v == null || v.trim().isEmpty) return 'Campo obligatorio';
     if (!RegExp(r'^\d{6,12}$').hasMatch(v.trim())) return 'CI inválido';
@@ -251,7 +316,9 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
 
   String? _validateCelular(String? v) {
     if (v == null || v.trim().isEmpty) return 'Campo obligatorio';
-    if (!RegExp(r'^[0-9+\s\-]{6,20}$').hasMatch(v.trim())) return 'Número inválido';
+    if (!RegExp(r'^[0-9+\s\-]{6,20}$').hasMatch(v.trim())) {
+      return 'Número inválido';
+    }
     return null;
   }
 
@@ -294,7 +361,8 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: ciController,
-                    decoration: const InputDecoration(labelText: 'Carnet de Identidad'),
+                    decoration:
+                        const InputDecoration(labelText: 'Carnet de Identidad'),
                     keyboardType: TextInputType.number,
                     validator: _validateCI,
                   ),
@@ -322,12 +390,16 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                         setState(() => fechaNacimiento = picked);
                       }
                     },
-                    subtitle: fechaNacimiento == null ? const Text('Obligatorio') : null,
+                    subtitle: fechaNacimiento == null
+                        ? const Text('Obligatorio')
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Expanded(child: Text('Asignar múltiples equipos')),
+                      const Expanded(
+                        child: Text('Asignar múltiples equipos'),
+                      ),
                       Switch(
                         value: multiAsignacion,
                         onChanged: (v) => setState(() {
@@ -337,9 +409,15 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                               categoriaEquipoId = equiposSeleccionados.first;
                             }
                           } else {
-                            if (categoriaEquipoId != null && categoriaEquipoId!.isNotEmpty) {
+                            if (categoriaEquipoId != null &&
+                                categoriaEquipoId!.isNotEmpty) {
                               equiposSeleccionados.clear();
-                              equiposSeleccionados.addAll(categoriaEquipoId!.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
+                              equiposSeleccionados.addAll(
+                                categoriaEquipoId!
+                                    .split(',')
+                                    .map((s) => s.trim())
+                                    .where((s) => s.isNotEmpty),
+                              );
                             }
                           }
                         }),
@@ -347,7 +425,6 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Selector único o multi (con buscador y orden por categoría descendente)
                   _buildSelector(),
                   const SizedBox(height: 20),
                   GradientButton(
@@ -355,9 +432,16 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(widget.profesor != null ? Icons.save : Icons.save, color: Colors.white),
+                        Icon(
+                          widget.profesor != null ? Icons.save : Icons.save,
+                          color: Colors.white,
+                        ),
                         const SizedBox(width: 8),
-                        Text(widget.profesor != null ? 'Guardar Cambios' : 'Registrar'),
+                        Text(
+                          widget.profesor != null
+                              ? 'Guardar Cambios'
+                              : 'Registrar',
+                        ),
                       ],
                     ),
                   ),
@@ -371,45 +455,57 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
   }
 
   Widget _buildSelector() {
-    // usar los items ya cargados en categoriaEquipoItems
     final items = categoriaEquipoItems;
 
-    // aplicar búsqueda (por label, categoria o equipo)
     final filtered = _searchTerm.isEmpty
         ? items
         : items.where((it) {
             final label = (it['label'] ?? '').toLowerCase();
             final categoria = (it['categoria'] ?? '').toLowerCase();
             final equipo = (it['equipo'] ?? '').toLowerCase();
-            return label.contains(_searchTerm) || categoria.contains(_searchTerm) || equipo.contains(_searchTerm);
+            return label.contains(_searchTerm) ||
+                categoria.contains(_searchTerm) ||
+                equipo.contains(_searchTerm);
           }).toList();
 
     if (!multiAsignacion) {
-      // dropdown: asegurar orden por año descendente (ya ordenados en carga)
-      final dropdownItems = filtered.map((it) => DropdownMenuItem<String>(value: it['id'], child: Text(it['label'] ?? ''))).toList();
+      final dropdownItems = filtered
+          .map((it) =>
+              DropdownMenuItem<String>(value: it['id'], child: Text(it['label'] ?? '')))
+          .toList();
       final valueExists = dropdownItems.any((d) => d.value == categoriaEquipoId);
       final dropdownValue = valueExists ? categoriaEquipoId : null;
       return DropdownButtonFormField<String>(
         value: dropdownValue,
-        decoration: const InputDecoration(labelText: 'Equipo asignado', border: OutlineInputBorder()),
+        decoration: const InputDecoration(
+          labelText: 'Equipo asignado',
+          border: OutlineInputBorder(),
+        ),
         items: dropdownItems,
         onChanged: (value) => setState(() => categoriaEquipoId = value),
-        validator: (v) => (v == null || v.isEmpty) ? 'Seleccione un equipo' : null,
+        validator: (v) =>
+            (v == null || v.isEmpty) ? 'Seleccione un equipo' : null,
       );
     } else {
-      // multi-select: mostrar buscador + lista de checkboxes (ordenados)
-      final displayCount = _expandedMultiList ? filtered.length : min(3, filtered.length);
+      final displayCount =
+          _expandedMultiList ? filtered.length : min(3, filtered.length);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Buscar equipos', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('Buscar equipos',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           TextField(
             controller: _searchController,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar por categoría o equipo', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Buscar por categoría o equipo',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 12),
-          const Text('Seleccione equipos', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('Seleccione equipos',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 260),
@@ -433,7 +529,8 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
                             } else {
                               equiposSeleccionados.remove(id);
                             }
-                            categoriaEquipoId = equiposSeleccionados.join(',');
+                            categoriaEquipoId =
+                                equiposSeleccionados.join(',');
                           });
                         },
                       );
@@ -444,8 +541,11 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => setState(() => _expandedMultiList = !_expandedMultiList),
-                child: Text(_expandedMultiList ? 'Ver menos' : 'Ver más (${filtered.length - 3})'),
+                onPressed: () =>
+                    setState(() => _expandedMultiList = !_expandedMultiList),
+                child: Text(_expandedMultiList
+                    ? 'Ver menos'
+                    : 'Ver más (${filtered.length - 3})'),
               ),
             ),
         ],

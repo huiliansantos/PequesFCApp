@@ -71,7 +71,8 @@ class _GuardianListScreenState extends ConsumerState<GuardianListScreen> {
                           
                         ),
                         title: Text(
-                          guardian.nombreCompleto,
+                          // a lado del nombre completo poner apellido
+                          '${guardian.nombreCompleto} ${guardian.apellido}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text('CI: ${guardian.ci}'),

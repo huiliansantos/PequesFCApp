@@ -157,6 +157,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : const Text('Iniciar sesión'),
                         ),
                       ),
+                      //texto que diga "hecho por:" y en la otra linea "Huiliam Cardozo"
+                      
+                    ),
+                                          //texto que diga "hecho por:" y en la otra linea "Huiliam Cardozo"
+                    const SizedBox(height: 16),
+                    const Center(
+                      child: Text(
+                        'Hecho por: Huiliam Santos Cardozo',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ),
                   ],
                 ),

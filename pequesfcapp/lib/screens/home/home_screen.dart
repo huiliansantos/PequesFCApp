@@ -21,6 +21,7 @@ import '../dashboard/admin_dashboard_screen.dart';
 import '../categorias/categoria_list_screen.dart';
 import '../torneos/torneo_list_screen.dart';
 import '../torneos/torneo_form_screen.dart';
+import '../../services/auth_service.dart'; // Agrega este import
 
 class HomeScreen extends StatefulWidget {
   final String role;
@@ -230,7 +231,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.logout),
                 tooltip: 'Cerrar sesión',
                 onPressed: () async {
+                  // ✅ 1. Limpiar sesión local
+                  await AuthService.cerrarSesion();
+
+                  // ✅ 2. Cerrar sesión en Firebase
                   await FirebaseAuth.instance.signOut();
+
+                  // ✅ 3. Navegar a LoginScreen
                   if (context.mounted) {
                     Navigator.pushAndRemoveUntil(
                       context,

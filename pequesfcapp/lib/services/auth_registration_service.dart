@@ -13,11 +13,16 @@ class AuthRegistrationService {
     required String contrasena,
     required String tipo, // 'profesor' o 'apoderado'
     required String docId,
+    String? adminEmail,      // ✅ Nuevo parámetro
+    String? adminPassword,   // ✅ Nuevo parámetro
   }) async {
     try {
       debugPrint('🔐 Iniciando registro en Auth: $email');
 
-      // ✅ Crear usuario en Firebase Auth
+      // Guardar credenciales del admin antes de crear el usuario
+      final prevUser = _auth.currentUser;
+
+      // ✅ Crear usuario en Firebase Auth (esto cambia la sesión)
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: contrasena,
@@ -25,7 +30,6 @@ class AuthRegistrationService {
 
       debugPrint('✅ Usuario creado en Auth: ${userCredential.user?.uid}');
 
-      // ✅ Guardar uid en Firestore para referencia futura
       await _firestore
           .collection(tipo == 'profesor' ? 'profesores' : 'guardianes')
           .doc(docId)
@@ -37,9 +41,15 @@ class AuthRegistrationService {
 
       debugPrint('✅ Credenciales guardadas en Firestore');
 
-      // ✅ Cerrar sesión de Auth (opcional, si quieres que inicie sesión manual)
-     /* await _auth.signOut();
-      debugPrint('✅ Sesión de Auth cerrada - Usuario debe hacer login manual');*/
+      // ✅ Volver a loguear al admin automáticamente
+      if (adminEmail != null && adminPassword != null) {
+        await _auth.signOut();
+        await _auth.signInWithEmailAndPassword(
+          email: adminEmail,
+          password: adminPassword,
+        );
+        debugPrint('✅ Sesión de admin restaurada');
+      }
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ Error Firebase Auth: ${e.code} - ${e.message}');
       throw Exception('Error al registrar en Auth: ${e.message}');

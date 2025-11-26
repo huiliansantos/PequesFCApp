@@ -11,6 +11,7 @@ import '../profesor/asistencia_profesor_screen.dart';
 import '../profesor/pagos_profesor_screen.dart';
 import '../login/login_screen.dart';
 import '../dashboard/admin_dashboard_screen.dart';
+import '../results/resultado_form_screen.dart';
 
 class ProfesorHomeScreen extends StatefulWidget {
   final Map<String, dynamic> profesor;
@@ -255,6 +256,22 @@ class _ProfesorHomeScreenState extends State<ProfesorHomeScreen> {
                 ),
               ],
             ),
+          ),
+
+          // ✅ FAB para registrar nuevo resultado
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: const Color(0xFFF57C00),
+            foregroundColor: Colors.white,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ResultadoFormScreen(),
+                ),
+              );
+            },
+            child: const Icon(Icons.add),
+            tooltip: 'Registrar resultado',
           ),
         );
       },

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/profesor_model.dart';
 import '../../widgets/gradient_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -176,6 +177,12 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
     final ci = ciController.text.trim();
     final isEdit = widget.profesor != null;
 
+    // ✅ GUARDAR EMAIL Y CONTRASEÑA DEL ADMIN
+    final adminEmail = FirebaseAuth.instance.currentUser?.email;
+    String? adminPassword;
+    // Aquí debes obtener la contraseña del admin, por ejemplo desde un campo seguro en tu app
+    adminPassword = '123456';
+
     try {
       // 1) Comprobar unicidad del CI en Firestore
       final query = await FirebaseFirestore.instance
@@ -248,60 +255,55 @@ class _ProfesorFormScreenState extends ConsumerState<ProfesorFormScreen> {
       );
     }
 
-    try {
-      final repo = ref.read(profesorRepositoryProvider);
+    final repo = ref.read(profesorRepositoryProvider);
 
-      // ✅ GUARDAR EN FIRESTORE
-      if (isEdit) {
-        await repo.updateProfesor(profesor);
-      } else {
-        await repo.addProfesor(profesor);
-      }
+    // ✅ GUARDAR EN FIRESTORE
+    if (isEdit) {
+      await repo.updateProfesor(profesor);
+    } else {
+      await repo.addProfesor(profesor);
+    }
 
-      ref.invalidate(profesoresProvider);
+    ref.invalidate(profesoresProvider);
 
-      // ✅ SI ES NUEVO, REGISTRAR EN FIREBASE AUTH
-      // Usar usuario@peques.local como email (no guardamos en modelo)
-      if (!isEdit) {
-        try {
-          await AuthRegistrationService.registrarEnAuth(
-            email: '$usuario@peques.local',  // ✅ Generar email del usuario
-            usuario: usuario,
-            contrasena: contrasena,
-            tipo: 'profesor',
-            docId: profesor.id,
+    // ✅ SI ES NUEVO, REGISTRAR EN FIREBASE AUTH
+    if (!isEdit) {
+      try {
+        await AuthRegistrationService.registrarEnAuth(
+          email: '$usuario@peques.local',
+          usuario: usuario,
+          contrasena: contrasena,
+          tipo: 'profesor',
+          docId: profesor.id,
+        );
+        debugPrint('✅ Profesor registrado en Auth');
+
+        // ✅ VOLVER A LOGUEAR AL ADMIN AUTOMÁTICAMENTE
+        if (adminEmail != null && adminPassword != null) {
+          await FirebaseAuth.instance.signOut();
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: adminEmail,
+            password: adminPassword,
           );
-          debugPrint('✅ Profesor registrado en Auth');
-        } catch (e) {
-          debugPrint('⚠️ Error al registrar en Auth: $e');
-          // Continuar sin error - el usuario puede hacer login manual
+          debugPrint('✅ Sesión de admin restaurada');
         }
+      } catch (e) {
+        debugPrint('⚠️ Error al registrar en Auth: $e');
       }
+    }
 
-      if (mounted) {
-        Navigator.pop(context); // cerrar loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isEdit
-                  ? 'Profesor actualizado'
-                  : 'Profesor registrado exitosamente',
-            ),           
+    if (mounted) {
+      Navigator.pop(context); // cerrar loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Profesor actualizado'
+                : 'Profesor registrado exitosamente',
           ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e, st) {
-      if (mounted) Navigator.pop(context);
-      debugPrint('Error guardar profesor: $e\n$st');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+        ),
+      );
+      Navigator.pop(context);
     }
   }
 

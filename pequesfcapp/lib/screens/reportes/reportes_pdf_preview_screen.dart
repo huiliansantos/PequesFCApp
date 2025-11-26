@@ -3,10 +3,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:pdf/pdf.dart'; // Add this import for PdfPageFormat
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReportesPdfPreviewScreen extends StatelessWidget {
   final String tipoReporte;
@@ -27,14 +25,12 @@ class ReportesPdfPreviewScreen extends StatelessWidget {
     final pdf = pw.Document();
     final now = DateTime.now();
 
-    // helper para formatear distintos tipos de fecha
     String _formatDate(dynamic f) {
       if (f == null) return '';
       try {
         if (f is Timestamp) return f.toDate().toString().split(' ')[0];
         if (f is DateTime) return f.toString().split(' ')[0];
         if (f is String) {
-          // intenta parsear ISO, si falla devuelve la misma cadena (ya legible en muchos casos)
           try {
             final dt = DateTime.parse(f);
             return dt.toString().split(' ')[0];
@@ -48,7 +44,6 @@ class ReportesPdfPreviewScreen extends StatelessWidget {
       }
     }
 
-    // cargar logo (opcional)
     Uint8List? logoBytes;
     try {
       final data = await rootBundle.load('assets/peques.png');
@@ -57,21 +52,24 @@ class ReportesPdfPreviewScreen extends StatelessWidget {
       logoBytes = null;
     }
 
-    // cargar mapa categorias -> "Categoria - Equipo"
     final categoriasMap = <String, String>{};
-    QuerySnapshot catSnap = await FirebaseFirestore.instance.collection('categoria_equipo').get();
+    QuerySnapshot catSnap =
+        await FirebaseFirestore.instance.collection('categoria_equipo').get();
     if (catSnap.docs.isEmpty) {
-      catSnap = await FirebaseFirestore.instance.collection('categorias_equipos').get();
+      catSnap = await FirebaseFirestore.instance
+          .collection('categorias_equipos')
+          .get();
     }
     for (var d in catSnap.docs) {
       final m = Map<String, dynamic>.from(d.data() as Map);
       final nombreCat = (m['categoria'] ?? m['nombre'] ?? '').toString();
-      final nombreEquipo = (m['equipo'] ?? m['nombreEquipo'] ?? m['team'] ?? '').toString();
-      final label = [nombreCat, nombreEquipo].where((s) => s.isNotEmpty).join(' - ');
+      final nombreEquipo =
+          (m['equipo'] ?? m['nombreEquipo'] ?? m['team'] ?? '').toString();
+      final label =
+          [nombreCat, nombreEquipo].where((s) => s.isNotEmpty).join(' - ');
       categoriasMap[d.id] = label.isNotEmpty ? label : d.id;
     }
 
-    // determinar label de categoria filtrada (para header)
     String categoriaFiltroLabel = '';
     if (filtros != null && filtros!['categoria'] != null) {
       final cid = filtros!['categoria'].toString();
@@ -82,32 +80,41 @@ class ReportesPdfPreviewScreen extends StatelessWidget {
       crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
         if (logoBytes != null)
-          pw.Container(width: 56, height: 56, child: pw.Image(pw.MemoryImage(logoBytes))),
+          pw.Container(
+              width: 56,
+              height: 56,
+              child: pw.Image(pw.MemoryImage(logoBytes))),
         pw.SizedBox(width: 12),
         pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          pw.Text('PEQUES FC', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-          pw.Text('Reporte: ${tipoReporte.replaceAll('_', ' ').toUpperCase()}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+          pw.Text('PEQUES FC',
+              style:
+                  pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          pw.Text('Reporte: ${tipoReporte.replaceAll('_', ' ').toUpperCase()}',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
           if (categoriaFiltroLabel.isNotEmpty)
-            pw.Text('Categoría-Equipo: $categoriaFiltroLabel', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey800)),
-          pw.Text('Generado: ${now.toLocal()}', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+            pw.Text('Categoría-Equipo: $categoriaFiltroLabel',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey800)),
+          pw.Text('Generado: ${now.toLocal()}',
+              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
         ])
       ],
     );
 
-    // CASO: reportes de PAGOS
+    // Reportes de pagos
     if (tipoReporte == 'pagos_estado' || tipoReporte == 'pagos_jugador') {
-      Query<Map<String, dynamic>> pagosQuery = FirebaseFirestore.instance.collection('pagos');
+      Query<Map<String, dynamic>> pagosQuery =
+          FirebaseFirestore.instance.collection('pagos');
 
+      // Solo filtra por jugador y fechas (no por categoriaEquipoId)
       if (filtros != null) {
-        if (filtros!['categoria'] != null) {
-          pagosQuery = pagosQuery.where('categoriaEquipoId', isEqualTo: filtros!['categoria']);
-        }
         if (filtros!['jugador'] != null) {
-          pagosQuery = pagosQuery.where('jugadorId', isEqualTo: filtros!['jugador']);
+          pagosQuery =
+              pagosQuery.where('jugadorId', isEqualTo: filtros!['jugador']);
         }
         if (filtros!['fechaInicio'] != null) {
           final from = DateTime.parse(filtros!['fechaInicio']);
-          pagosQuery = pagosQuery.where('fechaPago', isGreaterThanOrEqualTo: from);
+          pagosQuery =
+              pagosQuery.where('fechaPago', isGreaterThanOrEqualTo: from);
         }
         if (filtros!['fechaFin'] != null) {
           final to = DateTime.parse(filtros!['fechaFin']);
@@ -115,106 +122,242 @@ class ReportesPdfPreviewScreen extends StatelessWidget {
         }
       }
 
+      // Si hay filtro de categoría, filtra los jugadores primero
+      List<String>? jugadoresFiltradosPorCategoria;
+      if (filtros != null && filtros!['categoria'] != null) {
+        final jugadoresSnap = await FirebaseFirestore.instance
+            .collection('jugadores')
+            .where('categoriaEquipoId', isEqualTo: filtros!['categoria'])
+            .get();
+        jugadoresFiltradosPorCategoria =
+            jugadoresSnap.docs.map((d) => d.id).toList();
+      }
+
       final pagosSnap = await pagosQuery.get();
       final pagos = pagosSnap.docs.map((d) {
         final m = Map<String, dynamic>.from(d.data() as Map);
         m['id'] = d.id;
         return m;
+      }).where((p) {
+        // Si hay filtro de categoría, solo incluye pagos de jugadores de esa categoría
+        if (jugadoresFiltradosPorCategoria != null) {
+          return jugadoresFiltradosPorCategoria.contains(p['jugadorId']);
+        }
+        return true;
       }).toList();
 
-      // cargar jugadores para datos personales
-      final jugadoresSnap = await FirebaseFirestore.instance.collection('jugadores').get();
+      final jugadoresSnap =
+          await FirebaseFirestore.instance.collection('jugadores').get();
       final jugadoresMap = <String, Map<String, dynamic>>{};
       for (var d in jugadoresSnap.docs) {
         jugadoresMap[d.id] = Map<String, dynamic>.from(d.data() as Map);
       }
 
-      // si no hay label de categoria y hay pagos, intentar inferir
       if (categoriaFiltroLabel.isEmpty && pagos.isNotEmpty) {
         final first = pagos.first;
-        final catId = (first['categoriaEquipoId'] ?? jugadoresMap[first['jugadorId']]?['categoriaEquipoId'])?.toString();
-        if (catId != null && categoriasMap.containsKey(catId)) categoriaFiltroLabel = categoriasMap[catId]!;
+        final catId = jugadoresMap[first['jugadorId']]?['categoriaEquipoId']?.toString();
+        if (catId != null && categoriasMap.containsKey(catId))
+          categoriaFiltroLabel = categoriasMap[catId]!;
       }
 
-      // construir filas
       final rows = pagos.map((p) {
         final jugador = jugadoresMap[p['jugadorId']] ?? {};
-        final nombre = (jugador['nombres'] ?? jugador['nombre'] ?? jugador['nombreCompleto'] ?? '').toString().trim();
-        final apellido = (jugador['apellido'] ?? jugador['apellidoPaterno'] ?? '').toString().trim();
+        final nombre = (jugador['nombres'] ??
+                jugador['nombre'] ??
+                jugador['nombreCompleto'] ??
+                '')
+            .toString()
+            .trim();
+        final apellido =
+            (jugador['apellido'] ?? jugador['apellidoPaterno'] ?? '')
+                .toString()
+                .trim();
         final displayName = (nombre + ' ' + apellido).trim();
-        // fecha nacimiento (revisar posibles campos)
-        final fn = jugador['fechaDeNacimiento'] ?? jugador['fechaNacimiento'] ?? jugador['fecha_nacimiento'] ?? jugador['fechaNacimiento'];
+        final fn = jugador['fechaDeNacimiento'] ??
+            jugador['fechaNacimiento'] ??
+            jugador['fecha_nacimiento'] ??
+            jugador['fechaNacimiento'];
         final fechaNacimiento = _formatDate(fn);
-        final nacionalidad = (jugador['nacionalidad'] ?? jugador['pais'] ?? '').toString();
-        final fechaPago = _formatDate(p['fechaPago'] ?? p['fechaPagoString'] ?? p['fecha_pago']);
+        final nacionalidad =
+            (jugador['nacionalidad'] ?? jugador['pais'] ?? '').toString();
+        final fechaPago = _formatDate(
+            p['fechaPago'] ?? p['fechaPagoString'] ?? p['fecha_pago']);
         final mes = p['mes']?.toString() ?? '';
         final monto = p['monto']?.toString() ?? '0';
         final estado = p['estado']?.toString() ?? '';
-        return [displayName, fechaNacimiento, nacionalidad, fechaPago, mes, 'Bs. $monto', estado];
+        return [
+          displayName,
+          fechaNacimiento,
+          nacionalidad,
+          fechaPago,
+          mes,
+          'Bs. $monto',
+          estado
+        ];
       }).toList();
 
       pdf.addPage(
         pw.MultiPage(
           pageFormat: format,
-          header: (_) => pw.Padding(padding: const pw.EdgeInsets.only(bottom: 8), child: header),
+          header: (_) => pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 8), child: header),
           build: (context) => [
             pw.SizedBox(height: 6),
             pw.Table.fromTextArray(
-              headers: ['Jugador', 'Fecha nacimiento', 'Nacionalidad', 'Fecha pago', 'Mes', 'Monto', 'Estado'],
+              headers: [
+                'Jugador',
+                'Fecha nacimiento',
+                'Nacionalidad',
+                'Fecha pago',
+                'Mes',
+                'Monto',
+                'Estado'
+              ],
               data: rows,
             ),
           ],
         ),
       );
-
     } else {
       // Otros reportes: jugadores / profesores / guardianes
       String collection = 'jugadores';
       if (tipoReporte == 'profesores') collection = 'profesores';
       if (tipoReporte == 'apoderados') collection = 'guardianes';
 
-      Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection(collection);
-      if (filtros != null && filtros!['categoria'] != null && collection == 'jugadores') {
-        query = query.where('categoriaEquipoId', isEqualTo: filtros!['categoria']);
+      Query<Map<String, dynamic>> query =
+          FirebaseFirestore.instance.collection(collection);
+
+      // ✅ Filtro por categoría para todas las colecciones
+      if (filtros != null && filtros!['categoria'] != null) {
+        query =
+            query.where('categoriaEquipoId', isEqualTo: filtros!['categoria']);
       }
 
       final snap = await query.get();
-      final docs = snap.docs.map((d) => Map<String, dynamic>.from(d.data() as Map)).toList();
+      final docs = snap.docs
+          .map((d) => Map<String, dynamic>.from(d.data() as Map))
+          .toList();
 
-      // construir filas según colección
       final rows = docs.map((data) {
-        String apellido = '';
-        String nombre = '';
-        if (collection == 'jugadores') {
-          apellido = (data['apellido'] ?? '').toString();
-          nombre = (data['nombres'] ?? '').toString();
-        } else if (collection == 'profesores') {
-          apellido = (data['apellido'] ?? '').toString();
-          nombre = (data['nombre'] ?? '').toString();
+        if (collection == 'profesores') {
+          // PROFESORES: Nombre, Apellido, CI, Celular, Fecha de nacimiento, Categoría-Equipo, Usuario
+          final nombre = (data['nombre'] ?? '').toString();
+          final apellido = (data['apellido'] ?? '').toString();
+          final ci = (data['ci'] ?? '').toString();
+          final celular = (data['celular'] ?? '').toString();
+          final fn = data['fechaDeNacimiento'] ??
+              data['fechaNacimiento'] ??
+              data['fecha_nacimiento'] ??
+              '';
+          final fechaNacimiento = _formatDate(fn);
+          final usuario = (data['usuario'] ?? '').toString();
+
+          final categoriaIdRaw =
+              data['categoriaEquipoId'] ?? data['categoria'] ?? '';
+          String categoriaLabel = '';
+          if (categoriaIdRaw is List) {
+            categoriaLabel = categoriaIdRaw
+                .map((id) => categoriasMap[id.toString()] ?? id.toString())
+                .join('\n');
+          } else if (categoriaIdRaw is String && categoriaIdRaw.contains(',')) {
+            categoriaLabel = categoriaIdRaw
+                .split(',')
+                .map((id) => categoriasMap[id.trim()] ?? id.trim())
+                .join('\n');
+          } else {
+            final id = categoriaIdRaw.toString();
+            categoriaLabel = id.isNotEmpty ? (categoriasMap[id] ?? id) : '';
+          }
+
+          return [
+            nombre,
+            apellido,
+            ci,
+            celular,
+            fechaNacimiento,
+            categoriaLabel,
+            usuario
+          ];
         } else if (collection == 'guardianes') {
-          // guardianes tienen nombreCompleto
-          nombre = (data['nombreCompleto'] ?? '').toString();
-          // intentar separar apellido si no hay campo
-          apellido = (data['apellido'] ?? '').toString();
+          // APODERADOS: Nombre, Apellido, CI, Celular, Usuario
+          final nombre = (data['nombreCompleto'] ?? '').toString();
+          final apellido = (data['apellido'] ?? '').toString();
+          final ci = (data['ci'] ?? '').toString();
+          final celular = (data['celular'] ?? '').toString();
+          final usuario = (data['usuario'] ?? '').toString();
+
+          return [nombre, apellido, ci, celular, usuario];
+        } else {
+          // JUGADORES: columnas originales
+          String apellido = (data['apellido'] ?? '').toString();
+          String nombre = (data['nombres'] ?? '').toString();
+          final fn = data['fechaDeNacimiento'] ??
+              data['fechaNacimiento'] ??
+              data['fecha_nacimiento'] ??
+              '';
+          final fechaNacimiento = _formatDate(fn);
+          final nacionalidad =
+              (data['nacionalidad'] ?? data['pais'] ?? '').toString();
+          final categoriaIdRaw =
+              data['categoriaEquipoId'] ?? data['categoria'] ?? '';
+          String categoriaLabel = '';
+          if (categoriaIdRaw is List) {
+            categoriaLabel = categoriaIdRaw
+                .map((id) => categoriasMap[id.toString()] ?? id.toString())
+                .join('\n');
+          } else if (categoriaIdRaw is String && categoriaIdRaw.contains(',')) {
+            // Si es un string separado por comas, conviértelo a lista
+            categoriaLabel = categoriaIdRaw
+                .split(',')
+                .map((id) => categoriasMap[id.trim()] ?? id.trim())
+                .join('\n');
+          } else {
+            final id = categoriaIdRaw.toString();
+            categoriaLabel = id.isNotEmpty ? (categoriasMap[id] ?? id) : '';
+          }
+          return [
+            apellido,
+            nombre,
+            fechaNacimiento,
+            nacionalidad,
+            categoriaLabel
+          ];
         }
-
-        final fn = data['fechaDeNacimiento'] ?? data['fechaNacimiento'] ?? data['fecha_nacimiento'] ?? data['fechaNacimiento'];
-        final fechaNacimiento = _formatDate(fn);
-        final nacionalidad = (data['nacionalidad'] ?? data['pais'] ?? '').toString();
-        final categoriaId = (data['categoriaEquipoId'] ?? data['categoria'] ?? '').toString();
-        final categoriaLabel = categoriaId.isNotEmpty ? (categoriasMap[categoriaId] ?? categoriaId) : '';
-
-        return [apellido, nombre, fechaNacimiento, nacionalidad, categoriaLabel];
       }).toList();
+
+      // Encabezados personalizados
+      List<String> headers = [];
+      if (collection == 'profesores') {
+        headers = [
+          'Nombre',
+          'Apellido',
+          'CI',
+          'Celular',
+          'Fecha de nacimiento',
+          'Categoría - Equipo',
+          'Usuario'
+        ];
+      } else if (collection == 'guardianes') {
+        headers = ['Nombre', 'Apellido', 'CI', 'Celular', 'Usuario'];
+      } else {
+        headers = [
+          'Apellido',
+          'Nombre',
+          'Fecha nacimiento',
+          'Nacionalidad',
+          'Categoría - Equipo'
+        ];
+      }
 
       pdf.addPage(
         pw.MultiPage(
           pageFormat: format,
-          header: (_) => pw.Padding(padding: const pw.EdgeInsets.only(bottom: 8), child: header),
+          header: (_) => pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 8), child: header),
           build: (context) => [
             pw.SizedBox(height: 8),
             pw.Table.fromTextArray(
-              headers: ['Apellido', 'Nombre', 'Fecha nacimiento', 'Nacionalidad', 'Categoría - Equipo'],
+              headers: headers,
               data: rows,
             ),
           ],

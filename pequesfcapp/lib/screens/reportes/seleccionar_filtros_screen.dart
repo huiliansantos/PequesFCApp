@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'reportes_screen.dart';
+import 'reportes_pdf_preview_screen.dart';
 import '../../widgets/gradient_button.dart';
-import 'reportes_pdf_preview_screen.dart'; // Asegúrate de importar la nueva pantalla
-
 
 class SeleccionarFiltrosScreen extends StatefulWidget {
   final String tipoReporte;
 
   const SeleccionarFiltrosScreen({
-    Key? key, 
+    Key? key,
     required this.tipoReporte,
   }) : super(key: key);
 
@@ -24,10 +21,10 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
   DateTime? fechaInicio;
   DateTime? fechaFin;
   bool isLoading = true;
+  bool isJugadoresLoading = false;
   List<DropdownMenuItem<String>> categorias = [];
   List<DropdownMenuItem<String>> jugadores = [];
 
-  // Agregar nuevas variables para profesores y apoderados
   List<DropdownMenuItem<String>> profesores = [];
   List<DropdownMenuItem<String>> apoderados = [];
   String? profesorSeleccionado;
@@ -36,30 +33,18 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarOpciones();
+    _cargarCategoriasYOtros();
   }
 
-  Future<void> _cargarOpciones() async {
-    if (!mounted) return;
+  Future<void> _cargarCategoriasYOtros() async {
     setState(() => isLoading = true);
-    
     try {
-      // Corregir la carga de categorías
       final categoriasSnapshot = await FirebaseFirestore.instance
           .collection('categoria_equipo')
           .get();
-      
-      if (!mounted) return;
-      
-      // Debug print para ver qué datos estamos recibiendo
-      print('Datos recibidos de Firestore:');
-      categoriasSnapshot.docs.forEach((doc) {
-        print('ID: ${doc.id}, Data: ${doc.data()}');
-      });
-      
+
       categorias = categoriasSnapshot.docs.map((doc) {
         final data = doc.data();
-        // Asegurarnos de acceder correctamente a los campos
         final categoria = data['categoria'] ?? '';
         final equipo = data['equipo'] ?? '';
         return DropdownMenuItem<String>(
@@ -68,39 +53,16 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
         );
       }).toList();
 
-      // Ordenar las categorías alfabéticamente
-      categorias.sort((a, b) => 
-        (a.child as Text).data!.compareTo((b.child as Text).data!));
+      categorias.sort((a, b) => (a.child as Text).data!.compareTo((b.child as Text).data!));
 
-      print('Categorías procesadas: ${categorias.length}');
-      
-      // Cargar datos específicos según el tipo de reporte
-      if (widget.tipoReporte == 'pagos_estado' || widget.tipoReporte == 'pagos_jugador') {
-        final jugadoresSnapshot = await FirebaseFirestore.instance
-            .collection('jugadores')
-            .orderBy('apellido')  // Ordenar por apellido
-            .get();
-        
-        if (!mounted) return;
-        
-        jugadores = jugadoresSnapshot.docs.map((doc) {
-          final data = doc.data();
-          return DropdownMenuItem(
-            value: doc.id,
-            child: Text('${data['apellido'] ?? ''}, ${data['nombres'] ?? ''}'),
-          );
-        }).toList();
-      }
-      
+      // Profesores
       if (widget.tipoReporte == 'profesores') {
         final profesoresSnapshot = await FirebaseFirestore.instance
             .collection('profesores')
             .where('rol', isEqualTo: 'profesor')
-            .orderBy('apellido')  // Ordenar por apellido
+            .orderBy('apellido')
             .get();
-        
-        if (!mounted) return;
-        
+
         profesores = profesoresSnapshot.docs.map((doc) {
           final data = doc.data();
           return DropdownMenuItem(
@@ -109,16 +71,15 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
           );
         }).toList();
       }
-      
+
+      // Apoderados
       if (widget.tipoReporte == 'apoderados') {
         final apoderadosSnapshot = await FirebaseFirestore.instance
             .collection('guardianes')
             .where('rol', isEqualTo: 'apoderado')
-            .orderBy('apellido')  // Ordenar por apellido
+            .orderBy('apellido')
             .get();
-        
-        if (!mounted) return;
-        
+
         apoderados = apoderadosSnapshot.docs.map((doc) {
           final data = doc.data();
           return DropdownMenuItem(
@@ -127,9 +88,7 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
           );
         }).toList();
       }
-
     } catch (e) {
-      print('Error cargando datos: $e'); // Debug print
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error cargando datos: $e')),
@@ -137,6 +96,88 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
       }
     } finally {
       if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _cargarJugadoresPorCategoria(String? categoriaId) async {
+    setState(() {
+      isJugadoresLoading = true;
+      jugadorSeleccionado = null;
+      jugadores = [];
+    });
+
+    try {
+      QuerySnapshot<Map<String, dynamic>> jugadoresSnapshot;
+      if (categoriaId == null) {
+        jugadoresSnapshot = await FirebaseFirestore.instance
+            .collection('jugadores')
+            .orderBy('apellido')
+            .get();
+      } else {
+        jugadoresSnapshot = await FirebaseFirestore.instance
+            .collection('jugadores')
+            .where('categoriaEquipoId', isEqualTo: categoriaId)
+            .orderBy('apellido')
+            .get();
+      }
+
+      jugadores = jugadoresSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return DropdownMenuItem(
+          value: doc.id,
+          child: Text('${data['apellido'] ?? ''}, ${data['nombres'] ?? ''}'),
+        );
+      }).toList();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cargando jugadores: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isJugadoresLoading = false);
+    }
+  }
+
+  Future<void> _cargarProfesoresPorCategoria(String? categoriaId) async {
+    setState(() {
+      profesores = [];
+      profesorSeleccionado = null;
+      isJugadoresLoading = true;
+    });
+
+    try {
+      QuerySnapshot<Map<String, dynamic>> profesoresSnapshot;
+      if (categoriaId == null) {
+        profesoresSnapshot = await FirebaseFirestore.instance
+            .collection('profesores')
+            .where('rol', isEqualTo: 'profesor')
+            .orderBy('apellido')
+            .get();
+      } else {
+        profesoresSnapshot = await FirebaseFirestore.instance
+            .collection('profesores')
+            .where('rol', isEqualTo: 'profesor')
+            .where('categoriaEquipoId', isEqualTo: categoriaId)
+            .orderBy('apellido')
+            .get();
+      }
+
+      profesores = profesoresSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return DropdownMenuItem(
+          value: doc.id,
+          child: Text('${data['apellido'] ?? ''}, ${data['nombre'] ?? ''}'),
+        );
+      }).toList();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cargando profesores: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isJugadoresLoading = false);
     }
   }
 
@@ -148,8 +189,8 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtrar por categoría:', 
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Filtrar por categoría:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: categoriaSeleccionada,
@@ -157,7 +198,9 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
                 const DropdownMenuItem(value: null, child: Text('Todas las categorías')),
                 ...categorias,
               ],
-              onChanged: (value) => setState(() => categoriaSeleccionada = value),
+              onChanged: (value) {
+                setState(() => categoriaSeleccionada = value);
+              },
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -171,8 +214,8 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtrar por:', 
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Filtrar por:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: categoriaSeleccionada,
@@ -180,25 +223,34 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
                 const DropdownMenuItem(value: null, child: Text('Todas las categorías')),
                 ...categorias,
               ],
-              onChanged: (value) => setState(() => categoriaSeleccionada = value),
+              onChanged: (value) async {
+                setState(() {
+                  categoriaSeleccionada = value;
+                  jugadorSeleccionado = null;
+                  jugadores = [];
+                });
+                await _cargarJugadoresPorCategoria(value);
+              },
               decoration: const InputDecoration(
                 labelText: 'Categoría',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: jugadorSeleccionado,
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos los jugadores')),
-                ...jugadores,
-              ],
-              onChanged: (value) => setState(() => jugadorSeleccionado = value),
-              decoration: const InputDecoration(
-                labelText: 'Jugador',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            isJugadoresLoading
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<String>(
+                    value: jugadorSeleccionado,
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todos los jugadores')),
+                      ...jugadores,
+                    ],
+                    onChanged: (value) => setState(() => jugadorSeleccionado = value),
+                    decoration: const InputDecoration(
+                      labelText: 'Jugador',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -258,8 +310,8 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtrar profesores:', 
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Filtrar profesores:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: categoriaSeleccionada,
@@ -267,25 +319,34 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
                 const DropdownMenuItem(value: null, child: Text('Todas las categorías')),
                 ...categorias,
               ],
-              onChanged: (value) => setState(() => categoriaSeleccionada = value),
+              onChanged: (value) async {
+                setState(() {
+                  categoriaSeleccionada = value;
+                  profesorSeleccionado = null;
+                  profesores = [];
+                });
+                await _cargarProfesoresPorCategoria(value);
+              },
               decoration: const InputDecoration(
                 labelText: 'Categoría',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: profesorSeleccionado,
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos los profesores')),
-                ...profesores,
-              ],
-              onChanged: (value) => setState(() => profesorSeleccionado = value),
-              decoration: const InputDecoration(
-                labelText: 'Profesor',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            isJugadoresLoading
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<String>(
+                    value: profesorSeleccionado,
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todos los profesores')),
+                      ...profesores,
+                    ],
+                    onChanged: (value) => setState(() => profesorSeleccionado = value),
+                    decoration: const InputDecoration(
+                      labelText: 'Profesor',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
           ],
         );
 
@@ -293,8 +354,8 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Filtrar apoderados:', 
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Filtrar apoderados:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: categoriaSeleccionada,
@@ -353,7 +414,6 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
                 children: [
                   _buildFiltros(),
                   const SizedBox(height: 24),
-                  //cambiar por el widget de boton personalizado
                   GradientButton(
                     child: const Text('Generar reporte PDF'),
                     onPressed: () {
@@ -365,7 +425,7 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
                         if (fechaInicio != null) 'fechaInicio': fechaInicio!.toIso8601String(),
                         if (fechaFin != null) 'fechaFin': fechaFin!.toIso8601String(),
                       };
-
+                      debugPrint('Filtros enviados al reporte: $filtros');
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -377,7 +437,6 @@ class _SeleccionarFiltrosScreenState extends State<SeleccionarFiltrosScreen> {
                       );
                     },
                   ),
-                 
                 ],
               ),
             ),

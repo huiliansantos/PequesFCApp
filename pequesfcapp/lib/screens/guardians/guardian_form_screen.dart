@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/guardian_model.dart';
 import '../../models/player_model.dart';
 import '../../providers/player_provider.dart';
@@ -142,7 +143,12 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
     final repo = ref.read(guardianRepositoryProvider);
     final isNew = widget.guardian == null;
 
-    // Mostrar loading
+    // ✅ GUARDAR EMAIL Y CONTRASEÑA DEL ADMIN
+    final adminEmail = FirebaseAuth.instance.currentUser?.email;
+    String? adminPassword;
+    // Aquí debes obtener la contraseña del admin, por ejemplo desde un campo seguro en tu app
+    adminPassword = '123456';
+
     if (mounted) {
       showDialog(
         context: context,
@@ -175,21 +181,28 @@ class _GuardianFormScreenState extends ConsumerState<GuardianFormScreen> {
       }
 
       // ✅ SI ES NUEVO, REGISTRAR EN FIREBASE AUTH
-      // Usar usuario@peques.local como email (no guardamos en modelo)
       if (isNew) {
         try {
           await AuthRegistrationService.registrarEnAuth(
-            email:
-                '${usuarioGenerado}@peques.local', // ✅ Generar email del usuario
+            email: '${usuarioGenerado}@peques.local',
             usuario: usuarioGenerado,
             contrasena: contrasenaGenerada,
             tipo: 'apoderado',
             docId: newGuardian.id,
           );
           debugPrint('✅ Apoderado registrado en Auth');
+
+          // ✅ VOLVER A LOGUEAR AL ADMIN AUTOMÁTICAMENTE
+          if (adminEmail != null && adminPassword != null) {
+            await FirebaseAuth.instance.signOut();
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: adminEmail,
+              password: adminPassword,
+            );
+            debugPrint('✅ Sesión de admin restaurada');
+          }
         } catch (e) {
           debugPrint('⚠️ Error al registrar en Auth: $e');
-          // Continuar sin error - el usuario puede hacer login manual
         }
       }
 

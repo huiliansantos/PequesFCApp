@@ -157,14 +157,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : const Text('Iniciar sesión'),
                         ),
                       ),
-                      //texto que diga "hecho por:" y en la otra linea "Huiliam Cardozo"
-                      
                     ),
-                                          //texto que diga "hecho por:" y en la otra linea "Huiliam Cardozo"
                     const SizedBox(height: 16),
                     const Center(
                       child: Text(
-                        'Hecho por: Huiliam Santos Cardozo',
+                        'Hecho por: Huilian Santos Cardozo',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -193,7 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       debugPrint('🔐 Intentando login con usuario: $email');
 
-      // ✅ 1. INTENTA LOGIN LOCAL DE PROFESOR
+      // 1. INTENTA LOGIN LOCAL DE PROFESOR
       debugPrint('👨‍🏫 Verificando profesor...');
       final profesorRepo = ref.read(profesorRepositoryProvider);
       final profesor =
@@ -201,10 +198,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (profesor != null && mounted) {
         debugPrint('✅ Login profesor exitoso: ${profesor.nombre}');
-        
-        // ✅ GUARDAR SESIÓN
         await AuthService.guardarSesionProfesor(profesor);
-        
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -218,7 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      // ✅ 2. INTENTA LOGIN CON FIREBASE AUTH DE PROFESOR
+      // 2. INTENTA LOGIN CON FIREBASE AUTH DE PROFESOR
       debugPrint('🔓 Intentando Firebase Auth profesor...');
       final emailProfesor = '${email}@peques.local';
       try {
@@ -243,7 +237,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           final profesorLogeado = ProfesorModel.fromMap(profesorData
             ..['id'] = profesorSnapshot.docs.first.id);
 
-          // ✅ GUARDAR SESIÓN
           await AuthService.guardarSesionProfesor(profesorLogeado);
 
           if (mounted) {
@@ -268,7 +261,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
-      // ✅ 3. INTENTA LOGIN LOCAL DE APODERADO
+      // 3. INTENTA LOGIN LOCAL DE APODERADO
       debugPrint('👨‍👩‍👧 Verificando apoderado...');
       final guardianRepo = ref.read(guardianRepositoryProvider);
       final guardian =
@@ -277,12 +270,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (guardian != null && mounted) {
         debugPrint('✅ Login apoderado exitoso: ${guardian.nombreCompleto}');
         debugPrint('📋 Datos del apoderado: ${guardian.toMap()}');
-        
         try {
-          // ✅ OBTENER HIJOS CON MANEJO DE ERRORES
           debugPrint('📱 Obteniendo hijos del apoderado (ID: ${guardian.id})...');
           final playerRepo = ref.read(player_repo.playerRepositoryProvider);
-          
+
           List<dynamic> hijos = [];
           try {
             hijos = await playerRepo
@@ -303,7 +294,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
           debugPrint('✅ Hijos obtenidos: ${hijos.length}');
 
-          // ✅ GUARDAR SESIÓN ANTES DE NAVEGAR
           try {
             await AuthService.guardarSesionApoderado(guardian);
             debugPrint('✅ Sesión guardada correctamente');
@@ -338,7 +328,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
-      // ✅ 4. INTENTA LOGIN CON FIREBASE AUTH DE APODERADO
+      // 4. INTENTA LOGIN CON FIREBASE AUTH DE APODERADO
       debugPrint('🔓 Intentando Firebase Auth apoderado...');
       final emailGuardian = '${email}@peques.local';
       try {
@@ -353,7 +343,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         debugPrint('✅ Apoderado autenticado en Firebase Auth: ${userCred.user?.email}');
         debugPrint('🔍 Firebase UID: ${userCred.user?.uid}');
 
-        // ✅ BUSCAR POR EMAIL PRIMERO (más rápido)
         var guardianSnapshot = await FirebaseFirestore.instance
             .collection('guardianes')
             .where('email', isEqualTo: emailGuardian)
@@ -362,7 +351,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         debugPrint('🔍 Búsqueda por email: ${guardianSnapshot.docs.length} resultados');
 
-        // ✅ SI NO ENCUENTRA POR EMAIL, BUSCAR POR USUARIO
         if (guardianSnapshot.docs.isEmpty) {
           debugPrint('⚠️ No encontrado por email, buscando por usuario: $email');
           guardianSnapshot = await FirebaseFirestore.instance
@@ -374,7 +362,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           debugPrint('🔍 Búsqueda por usuario: ${guardianSnapshot.docs.length} resultados');
         }
 
-        // ✅ SI NO ENCUENTRA POR USUARIO, BUSCAR POR UID
         if (guardianSnapshot.docs.isEmpty) {
           debugPrint('⚠️ No encontrado por usuario, buscando por firebaseUid: ${userCred.user?.uid}');
           guardianSnapshot = await FirebaseFirestore.instance
@@ -389,10 +376,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (guardianSnapshot.docs.isNotEmpty && mounted) {
           final guardianData = guardianSnapshot.docs.first.data();
           final guardianId = guardianSnapshot.docs.first.id;
-          
+
           debugPrint('✅ Apoderado encontrado: ${guardianData['nombreCompleto']}');
 
-          // ✅ ACTUALIZAR FIREBASEUID SI NO EXISTE O ES DIFERENTE
           if (guardianData['firebaseUid'] != userCred.user?.uid) {
             try {
               debugPrint('📝 Actualizando firebaseUid del apoderado...');
@@ -409,10 +395,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ..['id'] = guardianId);
 
           try {
-            // ✅ OBTENER HIJOS CON MANEJO DE ERRORES
             debugPrint('📱 Obteniendo hijos del apoderado (Firebase Auth)...');
             final playerRepo = ref.read(player_repo.playerRepositoryProvider);
-            
+
             List<dynamic> hijos = [];
             try {
               hijos = await playerRepo
@@ -433,7 +418,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
             debugPrint('✅ Hijos obtenidos: ${hijos.length}');
 
-            // ✅ GUARDAR SESIÓN
             try {
               await AuthService.guardarSesionApoderado(guardianLogeado);
               debugPrint('✅ Sesión guardada correctamente');
@@ -479,8 +463,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
-      // ✅ 5. INTENTA LOGIN CON FIREBASE AUTH (ADMIN)
-      debugPrint('👤 Verificando admin (Firebase Auth)...');
+      // 5. INTENTA LOGIN CON FIREBASE AUTH (ADMIN) usando Firestore rol
+      debugPrint('👤 Verificando admin (Firebase Auth + Firestore)...');
       try {
         final userCred = await FirebaseAuth.instance
             .signInWithEmailAndPassword(
@@ -492,19 +476,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         debugPrint('✅ Usuario autenticado en Firebase: ${userCred.user?.email}');
 
-        // ✅ VERIFICAR SI ES ADMIN CHECANDO CUSTOM CLAIMS
-        final idTokenResult = await userCred.user?.getIdTokenResult(true);
-        final isAdmin = idTokenResult?.claims?['admin'] ?? false;
+        // ✅ BUSCAR USUARIO EN FIRESTORE Y VERIFICAR ROL
+        final userDoc = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(userCred.user!.uid)
+            .get();
 
-        if (isAdmin) {
+        final rol = userDoc.data()?['rol'] ?? 'apoderado';
+
+        if (rol == 'admin') {
           debugPrint('✅ Login Admin exitoso: ${userCred.user?.email}');
-          
-          // ✅ GUARDAR SESIÓN ADMIN
           await AuthService.guardarSesionAdmin(
             email: email,
             uid: userCred.user?.uid ?? '',
           );
-
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -515,7 +500,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           }
           return;
         } else {
-          debugPrint('❌ Usuario no es admin');
+          debugPrint('❌ Usuario no es admin (rol Firestore: $rol)');
           if (mounted) {
             setState(() => error = 'Usuario o contraseña incorrectos');
           }
